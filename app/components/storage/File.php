@@ -18,6 +18,13 @@ class File
 
     public function get($schema, $conditions, $columns = ['*'])
     {
+        $resultSet = $this->conditionFilter($schema, $conditions);
+
+        return $this->columnsFilter($resultSet, $columns);
+    }
+
+    public function conditionFilter($schema, $conditions)
+    {
         $resultSet = [];
 
         if (!array_key_exists($schema, self::IDX_SET)) {
@@ -37,23 +44,32 @@ class File
             }
 
             $index = $fieldIdx[$condition];
-            $row = self::TEST_ORIGIN_DATA[$index['id']];
-            foreach ($conditions as $subField => $subCondition) {
-                if ($subField === $field) {
-                    continue;
-                }
-                if ((!array_key_exists($subField, $index)) ||
-                    ($index[$subField] !== $subCondition)
-                ) {
-                    $row = null;
-                    break;
-                }
-            }
-            if (is_array($row)) {
+            $subConditions = $conditions;
+            unset($subConditions[$field]);
+            if ($this->checkSubConditions($index, $subConditions)) {
+                $row = self::TEST_ORIGIN_DATA[$index['id']];
                 $resultSet[] = $row;
             }
         }
 
+        return $resultSet;
+    }
+
+    protected function checkSubConditions($index, $subConditions)
+    {
+        foreach ($subConditions as $subField => $subCondition) {
+            if ((!array_key_exists($subField, $index)) ||
+                ($index[$subField] !== $subCondition)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected function columnsFilter($resultSet, $columns = ['*'])
+    {
         if (!in_array('*', $columns)) {
             foreach ($resultSet as $i => $row) {
                 foreach ($row as $k => $v) {
