@@ -24,11 +24,7 @@ class QueryPlan
         $idxField = $conditions[0]['base_expr'];
         $idxValue = $conditions[2]['base_expr'];
 
-        $columnsStr = $stmt['SELECT'][0]['base_expr'];
-        $columns = explode(',', $columnsStr);
-        array_walk($columns, function (&$item) {
-            $item = trim($item);
-        });
+        $columns = array_column($stmt['SELECT'], 'base_expr');
 
         return $storage->get($schema, [$idxField => $idxValue], $columns);
     }
