@@ -11,10 +11,11 @@
     ],
     "require": {
         "php": ">=7.1",
-        "ext-swoole": ">=4.4.0",
         "ext-json": "*",
         "ext-pdo": "*",
-        "luoxiaojun/sw-fw-less": "dev-master"
+        "ext-swoole": ">=4.4.0",
+        "luoxiaojun/sw-fw-less": "dev-master",
+        "phpmyadmin/sql-parser": "^5.1"
     },
     "suggest": {
         "ext-redis": "*",
