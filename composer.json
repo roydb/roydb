@@ -1,6 +1,6 @@
 {
     "name": "luoxiaojun/roydb",
-    "description": "Database in PHP with Swoole.",
+    "description": "Simple Database in PHP based on Sw-Fw-Less",
     "type": "project",
     "keywords": [
         "swoole",
