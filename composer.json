@@ -14,6 +14,7 @@
         "ext-json": "*",
         "ext-pdo": "*",
         "ext-swoole": ">=4.4.0",
+        "greenlion/php-sql-parser": "^4.3",
         "luoxiaojun/sw-fw-less": "dev-master",
         "phpmyadmin/sql-parser": "^5.1"
     },

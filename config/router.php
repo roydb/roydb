@@ -28,5 +28,8 @@ return [
         '/demo' => [
             ['POST', '.Greeting/SayHello', [\App\services\GreetingService::class, 'sayHello']],
         ],
+        '/query' => [
+            ['POST', '/select', [\App\services\QueryService::class, 'select']],
+        ],
     ],
 ];
