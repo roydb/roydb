@@ -3,6 +3,8 @@
 namespace App\components\plans;
 
 use App\components\Ast;
+use App\components\elements\condition\Condition;
+use App\components\elements\condition\ConditionTree;
 
 class QueryPlan
 {

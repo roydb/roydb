@@ -1,6 +1,6 @@
 <?php
 
-namespace App\components\plans;
+namespace App\components\elements\condition;
 
 class Condition
 {

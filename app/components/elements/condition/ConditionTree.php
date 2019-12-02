@@ -1,9 +1,10 @@
 <?php
 
-namespace App\components\plans;
+namespace App\components\elements\condition;
 
 class ConditionTree
 {
+    /** @var Condition[] */
     protected $subConditions;
 
     protected $logicOperator;
