@@ -4,18 +4,6 @@ namespace App\components\storage;
 
 class File
 {
-    const TEST_ORIGIN_DATA = [
-        1 => ['id' => 1, 'name' => 'foo', 'type' => 1]
-    ];
-
-    const IDX_SET = [
-        'test' => [
-            'name' => [
-                'foo' => ['id' => 1],
-            ],
-        ],
-    ];
-
     public function get($schema, $conditions, $columns = ['*'])
     {
         $resultSet = $this->conditionFilter($schema, $conditions);
@@ -27,27 +15,37 @@ class File
     {
         $resultSet = [];
 
-        if (!array_key_exists($schema, self::IDX_SET)) {
-            return $resultSet;
-        }
-
-        $schemaIdx = self::IDX_SET[$schema];
+        //todo choose idx using plan
 
         foreach ($conditions as $field => $condition) {
-            if (!array_key_exists($field, $schemaIdx)) {
+            $fieldIdx = \btree::open(
+                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $field
+            );
+
+            if ($fieldIdx === false) {
                 continue;
             }
 
-            $fieldIdx = $schemaIdx[$field];
-            if (!array_key_exists($condition, $fieldIdx)) {
+            $index = $fieldIdx->get($condition);
+            if (is_null($index)) {
                 continue;
             }
+            $index = json_decode($index, true);
 
-            $index = $fieldIdx[$condition];
             $subConditions = $conditions;
             unset($subConditions[$field]);
             if ($this->checkSubConditions($index, $subConditions)) {
-                $row = self::TEST_ORIGIN_DATA[$index['id']];
+                $primaryIdx = \btree::open(
+                    \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
+                );
+                if ($primaryIdx === false) {
+                    continue;
+                }
+                $row = $primaryIdx->get($index['id']);
+                if (is_null($row)) {
+                    continue;
+                }
+                $row = json_decode($row, true);
                 $resultSet[] = $row;
             }
         }
