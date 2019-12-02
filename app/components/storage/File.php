@@ -4,11 +4,9 @@ namespace App\components\storage;
 
 class File
 {
-    public function get($schema, $conditions, $columns = ['*'])
+    public function get($schema, $conditions)
     {
-        $resultSet = $this->conditionFilter($schema, $conditions);
-
-        return $this->columnsFilter($resultSet, $columns);
+        return $this->conditionFilter($schema, $conditions);
     }
 
     public function conditionFilter($schema, $conditions)
@@ -64,21 +62,5 @@ class File
         }
 
         return true;
-    }
-
-    protected function columnsFilter($resultSet, $columns = ['*'])
-    {
-        if (!in_array('*', $columns)) {
-            foreach ($resultSet as $i => $row) {
-                foreach ($row as $k => $v) {
-                    if (!in_array($k, $columns)) {
-                        unset($row[$k]);
-                    }
-                }
-                $resultSet[$i] = $row;
-            }
-        }
-
-        return $resultSet;
     }
 }
