@@ -126,8 +126,6 @@ class QueryPlan
 
     public function execute($storage)
     {
-        var_dump($this->condition);die;
-
         $resultSet = $storage->get(
             $this->schemas[0]['table'],
             $this->condition

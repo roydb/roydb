@@ -37,4 +37,20 @@ class Condition
         $this->operands[] = $operand;
         return $this;
     }
+
+    /**
+     * @return mixed
+     */
+    public function getOperator()
+    {
+        return $this->operator;
+    }
+
+    /**
+     * @return array
+     */
+    public function getOperands(): array
+    {
+        return $this->operands;
+    }
 }

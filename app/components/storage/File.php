@@ -2,65 +2,77 @@
 
 namespace App\components\storage;
 
+use App\components\elements\condition\Condition;
+use App\components\elements\condition\ConditionTree;
+
 class File
 {
-    public function get($schema, $conditions)
+    public function get($schema, $condition)
     {
-        return $this->conditionFilter($schema, $conditions);
+        return $this->conditionFilter($schema, $condition);
     }
 
-    public function conditionFilter($schema, $conditions)
+    protected function filterCondition($schema, Condition $condition)
+    {
+        if ($condition->getOperator() === '=') {
+            $operands = $condition->getOperands();
+            $fieldIdx = \btree::open(
+                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operands[0]
+            );
+
+            if ($fieldIdx === false) {
+                return null;
+            }
+
+            $index = $fieldIdx->get($operands[1]);
+            if (is_null($index)) {
+                return null;
+            }
+            $index = json_decode($index, true);
+
+            return $index;
+        }
+
+        //todo support more operators
+
+        return null;
+    }
+
+    protected function filterConditionTree($schema, ConditionTree $conditionTree)
+    {
+        //todo support more operators
+
+        return null;
+    }
+
+    public function conditionFilter($schema, $condition)
     {
         $resultSet = [];
 
         //todo choose idx using plan
 
-        foreach ($conditions as $field => $condition) {
-            $fieldIdx = \btree::open(
-                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $field
+        $index = null;
+        if ($condition instanceof Condition) {
+            $index = $this->filterCondition($schema, $condition);
+        } else {
+            $index = $this->filterConditionTree($schema, $condition);
+        }
+
+        if (!is_null($index)) {
+            $primaryIdx = \btree::open(
+                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
             );
-
-            if ($fieldIdx === false) {
-                continue;
+            if ($primaryIdx === false) {
+                return $resultSet;
             }
-
-            $index = $fieldIdx->get($condition);
-            if (is_null($index)) {
-                continue;
+            $row = $primaryIdx->get($index['id']);
+            if (is_null($row)) {
+                return $resultSet;
             }
-            $index = json_decode($index, true);
-
-            $subConditions = $conditions;
-            unset($subConditions[$field]);
-            if ($this->checkSubConditions($index, $subConditions)) {
-                $primaryIdx = \btree::open(
-                    \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
-                );
-                if ($primaryIdx === false) {
-                    continue;
-                }
-                $row = $primaryIdx->get($index['id']);
-                if (is_null($row)) {
-                    continue;
-                }
-                $row = json_decode($row, true);
-                $resultSet[] = $row;
-            }
+            $row = json_decode($row, true);
+            $resultSet[] = $row;
         }
 
         return $resultSet;
-    }
-
-    protected function checkSubConditions($index, $subConditions)
-    {
-        foreach ($subConditions as $subField => $subCondition) {
-            if ((!array_key_exists($subField, $index)) ||
-                ($index[$subField] !== $subCondition)
-            ) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }
