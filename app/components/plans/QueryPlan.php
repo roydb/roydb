@@ -135,7 +135,7 @@ class QueryPlan
 
     public function execute()
     {
-        var_dump($this->ast->getStmt());die;
+//        var_dump($this->ast->getStmt());die;
 
         $resultSet = [];
 
@@ -192,11 +192,12 @@ class QueryPlan
 
                 $rightResultSet = $this->storage->get(
                     $schema['table'],
-                    $this->condition
+                    $conditionTree
                 );
 
                 foreach ($rightResultSet as $rightRow) {
-                    if ($this->joinConditionMatcher($leftRow, $rightRow, $condition)) {
+                    //todo add non on condition
+                    if ($this->joinConditionMatcher($leftRow, $rightRow, $conditionTree)) {
                         $joinedResultSet[] = $leftRow + $rightRow;
                     }
                 }
@@ -222,13 +223,38 @@ class QueryPlan
         return $resultSet;
     }
 
-    protected function joinConditionMatcher($leftRow, $rightRow, $condition)
+    protected function joinConditionMatcher($leftRow, $rightRow, ConditionTree $conditionTree)
     {
-        if ($condition instanceof Condition) {
-            return $this->matchJoinCondition($leftRow, $rightRow, $condition);
-        } else {
-            return $this->matchJoinConditionTree($leftRow, $rightRow, $condition);
+        $subConditions = $conditionTree->getSubConditions();
+        $result = true;
+        foreach ($subConditions as $i => $subCondition) {
+            if ($subCondition instanceof Condition) {
+                $subResult = $this->matchJoinCondition($leftRow, $rightRow, $subCondition);
+            } else {
+                $subResult = $this->joinConditionMatcher($leftRow, $rightRow, $conditionTree);
+            }
+            if ($i === 0) {
+                if ($conditionTree->getLogicOperator() === 'not') {
+                    $result = !$subResult;
+                } else {
+                    $result = $subResult;
+                }
+            } else {
+                switch ($conditionTree->getLogicOperator()) {
+                    case 'and':
+                        $result = ($result && $subResult);
+                        break;
+                    case 'or':
+                        $result = ($result || $subResult);
+                        break;
+                    case 'not':
+                        $result = ($result && (!$subResult));
+                        break;
+                }
+            }
         }
+
+        return $result;
     }
 
     protected function matchJoinCondition($leftRow, $rightRow, Condition $condition)
@@ -252,13 +278,6 @@ class QueryPlan
             return $operands[0]->getValue() === $operands[1]->getValue();
         }
 
-        //todo support more operators
-
-        return false;
-    }
-
-    protected function matchJoinConditionTree($leftRow, $rightRow, ConditionTree $condition)
-    {
         //todo support more operators
 
         return false;

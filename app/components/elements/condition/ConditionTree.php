@@ -4,7 +4,7 @@ namespace App\components\elements\condition;
 
 class ConditionTree
 {
-    /** @var Condition[] */
+    /** @var Condition[]|ConditionTree[] */
     protected $subConditions;
 
     protected $logicOperator;
@@ -53,5 +53,13 @@ class ConditionTree
     public function getLogicOperator()
     {
         return $this->logicOperator;
+    }
+
+    /**
+     * @return Condition[]|ConditionTree[]
+     */
+    public function getSubConditions()
+    {
+        return $this->subConditions;
     }
 }
