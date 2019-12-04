@@ -14,9 +14,13 @@ class File extends AbstractStorage
 
     protected function fetchAllPrimaryIndexData($schema)
     {
+        //todo open if index exists
         $index = \btree::open(
             \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
         );
+        if ($index === false) {
+            return [];
+        }
         $indexData = array();
         foreach ($index->leaves() as $ptr) {
             list(, $leaf) = $index->node($ptr);
@@ -30,9 +34,13 @@ class File extends AbstractStorage
 
     protected function fetchPrimaryIndexDataById($id, $schema)
     {
+        //todo open if index exists
         $index = \btree::open(
             \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
         );
+        if ($index === false) {
+            return null;
+        }
         $indexData = $index->get($id);
         if (is_null($indexData)) {
             return null;
@@ -173,9 +181,13 @@ class File extends AbstractStorage
             }
 
             if ($operandType1 === 'colref' && $operandType2 === 'const') {
+                //todo open if index exists
                 $index = \btree::open(
                     \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operandValue1
                 );
+                if ($index === false) {
+                    return [];
+                }
                 $indexData = $index->get($operandValue2);
                 if (is_null($indexData)) {
                     return [];
@@ -183,9 +195,13 @@ class File extends AbstractStorage
                     return [json_decode($indexData, true)];
                 }
             } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+                //todo open if index exists
                 $index = \btree::open(
                     \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operandValue2
                 );
+                if ($index === false) {
+                    return [];
+                }
                 $indexData = $index->get($operandValue1);
                 if (is_null($indexData)) {
                     return [];
