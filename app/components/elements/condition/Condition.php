@@ -6,6 +6,7 @@ class Condition
 {
     protected $operator;
 
+    /** @var Operand[] */
     protected $operands = [];
 
     /**
@@ -47,7 +48,7 @@ class Condition
     }
 
     /**
-     * @return array
+     * @return Operand[]
      */
     public function getOperands(): array
     {

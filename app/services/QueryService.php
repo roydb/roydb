@@ -32,8 +32,8 @@ class QueryService extends BaseService
 
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql);
-        $plan = Plan::fromAst($ast);
-        $resultSet = $plan->execute(new File());
+        $plan = Plan::create($ast, new File());
+        $resultSet = $plan->execute();
 
         return [
             'code' => 0,

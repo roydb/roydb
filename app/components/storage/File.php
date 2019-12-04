@@ -5,7 +5,7 @@ namespace App\components\storage;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 
-class File
+class File extends AbstractStorage
 {
     public function get($schema, $condition)
     {
@@ -17,14 +17,14 @@ class File
         if ($condition->getOperator() === '=') {
             $operands = $condition->getOperands();
             $fieldIdx = \btree::open(
-                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operands[0]
+                \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operands[0]->getValue()
             );
 
             if ($fieldIdx === false) {
                 return null;
             }
 
-            $index = $fieldIdx->get($operands[1]);
+            $index = $fieldIdx->get($operands[1]->getValue());
             if (is_null($index)) {
                 return null;
             }
@@ -45,7 +45,7 @@ class File
         return null;
     }
 
-    public function conditionFilter($schema, $condition)
+    protected function conditionFilter($schema, $condition)
     {
         $resultSet = [];
 
