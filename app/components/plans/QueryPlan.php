@@ -233,6 +233,17 @@ class QueryPlan
         }
     }
 
+    protected function fillConditionTreeWithResultSet($resultSet, ConditionTree $conditionTree)
+    {
+        foreach ($conditionTree->getSubConditions() as $subCondition) {
+            if ($subCondition instanceof Condition) {
+                $this->fillConditionWithResultSet($resultSet, $subCondition);
+            } else {
+                $this->fillConditionTreeWithResultSet($resultSet, $subCondition);
+            }
+        }
+    }
+
     protected function leftJoinResultSet($leftResultSet, $schema)
     {
         $joinedResultSet = [];
@@ -246,14 +257,14 @@ class QueryPlan
                 if ($this->condition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $this->condition);
                 } else {
-                    //todo support condition tree
+                    $this->fillConditionTreeWithResultSet($leftRow, $this->condition);
                 }
                 $conditionTree->addSubConditions($this->condition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
                 } else {
-                    //todo support condition tree
+                    $this->fillConditionTreeWithResultSet($leftRow, $onCondition);
                 }
                 $conditionTree->addSubConditions($onCondition);
 
