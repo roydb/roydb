@@ -12,12 +12,19 @@ class File extends AbstractStorage
         return $this->conditionFilter($schema, $condition, $columns);
     }
 
+    protected function openBtree($name, $new = false)
+    {
+        $btreePath = \SwFwLess\facades\File::storagePath() . '/btree/' . $name;
+        if ((!$new) && (!file_exists($btreePath))) {
+            return false;
+        }
+
+        return \btree::open($btreePath);
+    }
+
     protected function fetchAllPrimaryIndexData($schema)
     {
-        //todo open if index exists
-        $index = \btree::open(
-            \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
-        );
+        $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
         }
@@ -34,10 +41,7 @@ class File extends AbstractStorage
 
     protected function fetchPrimaryIndexDataById($id, $schema)
     {
-        //todo open if index exists
-        $index = \btree::open(
-            \SwFwLess\facades\File::storagePath() . '/btree/' . $schema
-        );
+        $index = $this->openBtree($schema);
         if ($index === false) {
             return null;
         }
@@ -181,10 +185,7 @@ class File extends AbstractStorage
             }
 
             if ($operandType1 === 'colref' && $operandType2 === 'const') {
-                //todo open if index exists
-                $index = \btree::open(
-                    \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operandValue1
-                );
+                $index = $this->openBtree($schema . '.' . $operandValue1);
                 if ($index === false) {
                     return [];
                 }
@@ -195,10 +196,7 @@ class File extends AbstractStorage
                     return [json_decode($indexData, true)];
                 }
             } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
-                //todo open if index exists
-                $index = \btree::open(
-                    \SwFwLess\facades\File::storagePath() . '/btree/' . $schema . '.' . $operandValue2
-                );
+                $index = $this->openBtree($schema . '.' . $operandValue2);
                 if ($index === false) {
                     return [];
                 }
