@@ -3,11 +3,8 @@
     "description": "Simple Database in PHP based on Sw-Fw-Less",
     "type": "project",
     "keywords": [
-        "swoole",
-        "framework",
-        "coroutine",
-        "php",
-        "app"
+        "database",
+        "php"
     ],
     "require": {
         "php": ">=7.1",
