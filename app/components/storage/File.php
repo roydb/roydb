@@ -20,7 +20,10 @@ class File extends AbstractStorage
         $indexData = array();
         foreach ($index->leaves() as $ptr) {
             list(, $leaf) = $index->node($ptr);
-            array_push($indexData, json_decode($leaf, true));
+            array_walk($leaf, function (&$val) {
+                $val = json_decode($val, true);
+            });
+            $indexData = array_merge($indexData, array_values($leaf));
         }
         return $indexData;
     }
@@ -38,91 +41,110 @@ class File extends AbstractStorage
         }
     }
 
-    protected function filterConditionByIndexData($schema, $indexData, Condition $condition)
+    protected function filterConditionByIndexData($schema, $row, Condition $condition)
     {
-        foreach ($indexData as $i => $row) {
-            if ($condition->getOperator() === '=') {
-                $operands = $condition->getOperands();
-                $operandValue1 = $operands[0]->getValue();
-                $operandType1 = $operands[0]->getType();
-                if ($operandType1 === 'colref') {
-                    if (strpos($operandValue1, '.')) {
-                        list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
-                        if ($operandSchema1 !== $schema) {
-                            continue;
-                        }
+        if ($condition->getOperator() === '=') {
+            $operands = $condition->getOperands();
+            $operandValue1 = $operands[0]->getValue();
+            $operandType1 = $operands[0]->getType();
+            if ($operandType1 === 'colref') {
+                if (strpos($operandValue1, '.')) {
+                    list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
+                    if ($operandSchema1 !== $schema) {
+                        return true;
                     }
                 }
-                $operandValue2 = $operands[1]->getValue();
-                $operandType2 = $operands[1]->getType();
-                if ($operandType2 === 'colref') {
-                    if (strpos($operandValue2, '.')) {
-                        list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
-                        if ($operandSchema2 !== $schema) {
-                            continue;
-                        }
+            }
+            $operandValue2 = $operands[1]->getValue();
+            $operandType2 = $operands[1]->getType();
+            if ($operandType2 === 'colref') {
+                if (strpos($operandValue2, '.')) {
+                    list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
+                    if ($operandSchema2 !== $schema) {
+                        return true;
                     }
                 }
+            }
 
-                if ($operandType1 === 'colref' && $operandType2 === 'const') {
+            if ($operandType1 === 'colref' && $operandType2 === 'const') {
+                if (!array_key_exists($operandValue1, $row)) {
+                    $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+                }
+                if (!array_key_exists($operandValue1, $row)) {
+                    return true;
+                }
+                if ($row[$operandValue1] !== $operandValue2) {
+                    return false;
+                }
+            } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+                if (!array_key_exists($operandValue2, $row)) {
+                    $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+                }
+                if (!array_key_exists($operandValue2, $row)) {
+                    return true;
+                }
+                if ($row[$operandValue2] !== $operandValue1) {
+                    return false;
+                }
+            } elseif ($operandType1 === 'colref' && $operandType2 === 'colref') {
+                $backToPrimaryIndex = false;
+                if (!$backToPrimaryIndex) {
                     if (!array_key_exists($operandValue1, $row)) {
                         $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                        $indexData[$i] = $row;
                     }
-                    if (!array_key_exists($operandValue1, $row)) {
-                        continue;
-                    }
-                    if ($row[$operandValue1] !== $operandValue2) {
-                        unset($indexData[$i]);
-                    }
-                } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+                }
+                if (!array_key_exists($operandValue1, $row)) {
+                    return true;
+                }
+                if (!$backToPrimaryIndex) {
                     if (!array_key_exists($operandValue2, $row)) {
                         $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                        $indexData[$i] = $row;
                     }
-                    if (!array_key_exists($operandValue2, $row)) {
-                        continue;
-                    }
-                    if ($row[$operandValue2] !== $operandValue1) {
-                        unset($indexData[$i]);
-                    }
-                } elseif ($operandType1 === 'colref' && $operandType2 === 'colref') {
-                    $backToPrimaryIndex = false;
-                    if (!$backToPrimaryIndex) {
-                        if (!array_key_exists($operandValue1, $row)) {
-                            $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                            $indexData[$i] = $row;
-                        }
-                    }
-                    if (!array_key_exists($operandValue1, $row)) {
-                        continue;
-                    }
-                    if (!$backToPrimaryIndex) {
-                        if (!array_key_exists($operandValue2, $row)) {
-                            $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                            $indexData[$i] = $row;
-                        }
-                    }
-                    if (!array_key_exists($operandValue2, $row)) {
-                        continue;
-                    }
-                    if ($row[$operandValue1] !== $row[$operandValue2]) {
-                        unset($indexData[$i]);
-                    }
+                }
+                if (!array_key_exists($operandValue2, $row)) {
+                    return true;
+                }
+                if ($row[$operandValue1] !== $row[$operandValue2]) {
+                    return false;
                 }
             }
         }
 
-        //todo support more operators
-
-        return array_values($indexData);
+        return true;
     }
 
-    protected function filterConditionTreeByIndexData($schema, $indexData, ConditionTree $conditionTree)
+    protected function filterConditionTreeByIndexData($schema, $row, ConditionTree $conditionTree)
     {
-        //todo support more operators
+        $subConditions = $conditionTree->getSubConditions();
+        $result = true;
+        foreach ($subConditions as $i => $subCondition) {
+            if ($subCondition instanceof Condition) {
+                $subResult = $this->filterConditionByIndexData($schema, $row, $subCondition);
+            } else {
+                $subResult = $this->filterConditionTreeByIndexData($schema, $row, $subCondition);
+            }
+            if ($i === 0) {
+                if ($conditionTree->getLogicOperator() === 'not') {
+                    $result = !$subResult;
+                } else {
+                    $result = $subResult;
+                }
+            } else {
+                switch ($conditionTree->getLogicOperator()) {
+                    case 'and':
+                        $result = ($result && $subResult);
+                        break;
+                    case 'or':
+                        $result = ($result || $subResult);
+                        break;
+                    case 'not':
+                        $result = ($result && (!$subResult));
+                        break;
+                }
+            }
+        }
 
-        return [];
+        return $result;
     }
 
     protected function filterCondition($schema, Condition $condition)
@@ -188,9 +210,18 @@ class File extends AbstractStorage
 
     protected function filterConditionTree($schema, ConditionTree $conditionTree)
     {
-        //todo support more operators
+        $result = [];
 
-        return [];
+        foreach ($conditionTree->getSubConditions() as $i => $subCondition) {
+            if ($subCondition instanceof Condition) {
+                $subResult = $this->filterCondition($schema, $subCondition);
+            } else {
+                $subResult = $this->filterConditionTree($schema, $subCondition);
+            }
+            $result = array_merge($result, $subResult);
+        }
+
+        return $result;
     }
 
     protected function conditionFilter($schema, $condition, $columns = ['*'])
@@ -199,10 +230,18 @@ class File extends AbstractStorage
 
         if ($condition instanceof Condition) {
             $indexData = $this->filterCondition($schema, $condition);
-            $indexData = $this->filterConditionByIndexData($schema, $indexData, $condition);
+            foreach ($indexData as $i => $row) {
+               if (!$this->filterConditionByIndexData($schema, $row, $condition)) {
+                   unset($indexData[$i]);
+               }
+            }
         } else {
             $indexData = $this->filterConditionTree($schema, $condition);
-            $indexData = $this->filterConditionTreeByIndexData($schema, $indexData, $condition);
+            foreach ($indexData as $i => $row) {
+                if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
+                    unset($indexData[$i]);
+                }
+            }
         }
 
         if (in_array('*', $columns)) {
@@ -210,25 +249,30 @@ class File extends AbstractStorage
                 $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
             }
         } else {
-            if (count($indexData) > 0) {
+            foreach ($indexData as $i => $row) {
                 foreach ($columns as $column) {
                     if (!array_key_exists($column, $indexData[0])) {
-                        foreach ($indexData as $i => $row) {
-                            $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                        }
+                        $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
                         break;
                     }
                 }
             }
         }
 
+        $idMap = [];
         foreach ($indexData as $i => $row) {
+            if (in_array($row['id'], $idMap)) {
+                unset($indexData[$i]);
+                continue;
+            } else {
+                $idMap[] = $row['id'];
+            }
             foreach ($row as $column => $value) {
                 $row[$schema . '.' . $column] = $value;
             }
             $indexData[$i] = $row;
         }
 
-        return $indexData;
+        return array_values($indexData);
     }
 }

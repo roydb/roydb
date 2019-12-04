@@ -120,8 +120,15 @@ class QueryPlan
                     }
                 }
             } elseif ($expr['expr_type'] === 'const') {
+                $constExpr = $expr['base_expr'];
+                if (strpos($constExpr, '"') === 0) {
+                    $constExpr = substr($constExpr, 1);
+                }
+                if (strpos($constExpr, '"') === (strlen($constExpr) - 1)) {
+                    $constExpr = substr($constExpr, 0, -1);
+                }
                 $condition->addOperands(
-                    (new Operand())->setType('const')->setValue($expr['base_expr'])
+                    (new Operand())->setType('const')->setValue($constExpr)
                 );
             }
         }
@@ -135,8 +142,6 @@ class QueryPlan
 
     public function execute()
     {
-//        var_dump($this->ast->getStmt());die;
-
         $resultSet = [];
 
         foreach ($this->schemas as $i => $schema) {
@@ -178,15 +183,13 @@ class QueryPlan
                     foreach ($operands as $operandIndex => $operand) {
                         if ($operand->getType() === 'colref') {
                             $operandValue = $operand->getValue();
-                            if (strpos($operandValue, '.')) {
-                                if (array_key_exists($operandValue, $leftRow)) {
-                                    $operand->setValue($leftRow[$operandValue]);
-                                }
+                            if (array_key_exists($operandValue, $leftRow)) {
+                                $operand->setValue($leftRow[$operandValue])->setType('const');
                             }
                         }
                     }
                 } else {
-                    //todo
+                    //todo support condition tree
                 }
                 $conditionTree->addSubConditions($condition);
 
@@ -263,12 +266,10 @@ class QueryPlan
         foreach ($operands as $operandIndex => $operand) {
             if ($operand->getType() === 'colref') {
                 $operandValue = $operand->getValue();
-                if (strpos($operandValue, '.')) {
-                    if (array_key_exists($operandValue, $leftRow)) {
-                        $operand->setValue($leftRow[$operandValue])->setType('const');
-                    } elseif (array_key_exists($operandValue, $rightRow)) {
-                        $operand->setValue($rightRow[$operandValue])->setType('const');
-                    }
+                if (array_key_exists($operandValue, $leftRow)) {
+                    $operand->setValue($leftRow[$operandValue])->setType('const');
+                } elseif (array_key_exists($operandValue, $rightRow)) {
+                    $operand->setValue($rightRow[$operandValue])->setType('const');
                 }
             }
         }

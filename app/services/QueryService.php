@@ -15,11 +15,11 @@ class QueryService extends BaseService
 //            mkdir(\SwFwLess\facades\File::storagePath() . '/btree', 0777, true);
 //        }
 //        $fieldIdx = \btree::open(
-//            \SwFwLess\facades\File::storagePath() . '/btree/test.name'
+//            \SwFwLess\facades\File::storagePath() . '/btree/test2.name'
 //        );
 //        $fieldIdx->set('foo', json_encode(['id' => 1]));
 //        $primaryIdx = \btree::open(
-//            \SwFwLess\facades\File::storagePath() . '/btree/test'
+//            \SwFwLess\facades\File::storagePath() . '/btree/test2'
 //        );
 //        $primaryIdx->set(1, json_encode(['id' => 1, 'type' => 1, 'name' => 'foo']));
 //        return [
