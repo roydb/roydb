@@ -35,7 +35,12 @@ class QueryPlan
 
         $this->extractColumns();
         $this->extractSchemas();
-        $this->condition = $this->extractConditions($ast->getStmt()['WHERE']);
+        $this->condition = $this->extractWhereConditions();
+    }
+
+    protected function extractWhereConditions()
+    {
+        return $this->extractConditions($this->ast->getStmt()['WHERE']);
     }
 
     protected function extractColumns()
@@ -211,7 +216,7 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+                $whereCondition = $this->extractWhereConditions();
                 if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
@@ -252,7 +257,7 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+                $whereCondition = $this->extractWhereConditions();
                 if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
@@ -294,7 +299,7 @@ class QueryPlan
 
         $filledWithLeftResult = false;
         if (count($leftResultSet) > 0) {
-            $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+            $whereCondition = $this->extractWhereConditions();
             if ($whereCondition instanceof Condition) {
                 if ($this->fillConditionWithResultSet($leftResultSet[0], $whereCondition)) {
                     $filledWithLeftResult = true;
@@ -314,7 +319,7 @@ class QueryPlan
         } else {
             $rightResultSet = [];
             foreach ($leftResultSet as $leftRow) {
-                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+                $whereCondition = $this->extractWhereConditions();
                 if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
