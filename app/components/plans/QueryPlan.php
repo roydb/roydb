@@ -6,6 +6,7 @@ use App\components\Ast;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
+use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 
 class QueryPlan
@@ -391,19 +392,9 @@ class QueryPlan
             }
         }
 
-        $operator = $condition->getOperator();
-        if ($operator === '=') {
-            return $operands[0]->getValue() === $operands[1]->getValue();
-        } elseif ($operator === '<') {
-            return $operands[0]->getValue() < $operands[1]->getValue();
-        } elseif ($operator === '<=') {
-            return $operands[0]->getValue() <= $operands[1]->getValue();
-        }
+        return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operands);
 
-        //todo refactor,reduce number of if else statements
         //todo support more operators
-
-        return false;
     }
 
     protected function matchJoinConditionTree($leftRow, $rightRow, ConditionTree $condition)
