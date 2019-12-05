@@ -310,6 +310,72 @@ class LevelDB extends AbstractStorage
             } else {
                 return $this->fetchAllPrimaryIndexData($schema);
             }
+        } elseif ($condition->getOperator() === '<=') {
+            $operands = $condition->getOperands();
+            $operandValue1 = $operands[0]->getValue();
+            $operandType1 = $operands[0]->getType();
+            if ($operandType1 === 'colref') {
+                if (strpos($operandValue1, '.')) {
+                    list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
+                    if ($operandSchema1 !== $schema) {
+                        return $this->fetchAllPrimaryIndexData($schema);
+                    }
+                }
+            }
+            $operandValue2 = $operands[1]->getValue();
+            $operandType2 = $operands[1]->getType();
+            if ($operandType2 === 'colref') {
+                if (strpos($operandValue2, '.')) {
+                    list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
+                    if ($operandSchema2 !== $schema) {
+                        return $this->fetchAllPrimaryIndexData($schema);
+                    }
+                }
+            }
+
+            if ($operandType1 === 'colref' && $operandType2 === 'const') {
+                $index = $this->openBtree($schema . '.' . $operandValue1);
+                if ($index === false) {
+                    return [];
+                }
+                $indexData = [];
+                $it = new \LevelDBIterator($index);
+                $lastIndexItem = $it->seek($operandValue1);
+                if ($lastIndexItem === null) {
+                    $it->last();
+                }
+                for(; $it->valid(); $it->prev()) {
+                    if ($it->key() <= $operandValue2) {
+                        $indexData[] = json_decode($it->current(), true);
+                    }
+                }
+                return $indexData;
+            } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+                $index = $this->openBtree($schema . '.' . $operandValue2);
+                if ($index === false) {
+                    return [];
+                }
+                $indexData = [];
+                $it = new \LevelDBIterator($index);
+                $lastIndexItem = $it->seek($operandValue2);
+                if ($lastIndexItem === null) {
+                    $it->last();
+                }
+                for(; $it->valid(); $it->prev()) {
+                    if ($it->key() <= $operandValue2) {
+                        $indexData[] = json_decode($it->current(), true);
+                    }
+                }
+                return $indexData;
+            } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
+                if ($operandValue1 > $operandValue2) {
+                    return $this->fetchAllPrimaryIndexData($schema);
+                } else {
+                    return [];
+                }
+            } else {
+                return $this->fetchAllPrimaryIndexData($schema);
+            }
         }
 
         //todo support more operators

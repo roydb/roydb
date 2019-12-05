@@ -396,8 +396,11 @@ class QueryPlan
             return $operands[0]->getValue() === $operands[1]->getValue();
         } elseif ($operator === '<') {
             return $operands[0]->getValue() < $operands[1]->getValue();
+        } elseif ($operator === '<=') {
+            return $operands[0]->getValue() <= $operands[1]->getValue();
         }
 
+        //todo refactor,reduce number of if else statements
         //todo support more operators
 
         return false;

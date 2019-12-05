@@ -53,6 +53,10 @@ class QueryService extends BaseService
 //        $fieldIdx->set('foo', json_encode(['id' => 1]));
 //        $primaryIdx = $this->openBtree('test', true);
 //        $primaryIdx->set(1, json_encode(['id' => 1, 'type' => 1, 'name' => 'foo']));
+//        $fieldIdx->set('goo', json_encode(['id' => 2]));
+//        $primaryIdx->set(2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
+//        $fieldIdx->set('zoo', json_encode(['id' => 3]));
+//        $primaryIdx->set(3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
 //        var_dump($fieldIdx->get('foo'));
 //        var_dump($fieldIdx->get('haha'));
 //        return [
