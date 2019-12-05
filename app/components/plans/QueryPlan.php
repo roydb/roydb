@@ -294,12 +294,14 @@ class QueryPlan
 
         $filledWithLeftResult = false;
         if (count($leftResultSet) > 0) {
+            //todo bugfix fill可能会覆盖$this->condition
+            $whereCondition = $this->condition;
             if ($this->condition instanceof Condition) {
-                if ($this->fillConditionWithResultSet($leftResultSet[0], $this->condition)) {
+                if ($this->fillConditionWithResultSet($leftResultSet[0], $whereCondition)) {
                     $filledWithLeftResult = true;
                 }
             } else {
-                if ($this->fillConditionTreeWithResultSet($leftResultSet[0], $this->condition)) {
+                if ($this->fillConditionTreeWithResultSet($leftResultSet[0], $whereCondition)) {
                     $filledWithLeftResult = true;
                 }
             }
@@ -313,15 +315,16 @@ class QueryPlan
         } else {
             $rightResultSet = [];
             foreach ($leftResultSet as $leftRow) {
+                $whereCondition = $this->condition;
                 if ($this->condition instanceof Condition) {
-                    $this->fillConditionWithResultSet($leftRow, $this->condition);
+                    $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
-                    $this->fillConditionTreeWithResultSet($leftRow, $this->condition);
+                    $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
                 }
 
                 $rightResultSet = array_merge($rightResultSet, $this->storage->get(
                     $schema['table'],
-                    $this->condition
+                    $whereCondition
                 ));
             }
             $idMap = [];
@@ -384,9 +387,11 @@ class QueryPlan
             }
         }
 
-        if ($condition->getOperator() === '=') {
-            $operands = $condition->getOperands();
+        $operator = $condition->getOperator();
+        if ($operator === '=') {
             return $operands[0]->getValue() === $operands[1]->getValue();
+        } elseif ($operator === '<') {
+            return $operands[0]->getValue() < $operands[1]->getValue();
         }
 
         //todo support more operators
