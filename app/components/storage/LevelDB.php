@@ -309,6 +309,8 @@ class LevelDB extends AbstractStorage
             return $this->filterBasicCompareCondition($schema, $condition);
         }
 
+        //todo support between
+
         return $this->fetchAllPrimaryIndexData($schema);
 
         //todo support more operators
@@ -333,7 +335,6 @@ class LevelDB extends AbstractStorage
     protected function conditionFilter($schema, $condition, $columns = ['*'])
     {
         //todo choose idx using plan
-
         if ($condition instanceof Condition) {
             $indexData = $this->filterCondition($schema, $condition);
             foreach ($indexData as $i => $row) {
