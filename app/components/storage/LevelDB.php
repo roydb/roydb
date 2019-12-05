@@ -2,6 +2,7 @@
 
 namespace App\components\storage;
 
+use App\components\consts\Operator;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\math\OperatorHandler;
@@ -231,8 +232,7 @@ class LevelDB extends AbstractStorage
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
                     $indexData[] = json_decode($prevIt->current(), true);
                 } else {
-                    //todo const range operator
-                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
                         break;
                     }
                 }
@@ -247,8 +247,7 @@ class LevelDB extends AbstractStorage
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
                     $indexData[] = json_decode($nextIt->current(), true);
                 } else {
-                    //todo const range operator
-                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
                         break;
                     }
                 }
@@ -270,8 +269,7 @@ class LevelDB extends AbstractStorage
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
                     $indexData[] = json_decode($prevIt->current(), true);
                 } else {
-                    //todo const range operator
-                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
                         break;
                     }
                 }
@@ -286,13 +284,12 @@ class LevelDB extends AbstractStorage
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
                     $indexData[] = json_decode($nextIt->current(), true);
                 } else {
-                    //todo const range operator
-                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
                         break;
                     }
                 }
             }
-            //todo optimizen 范围类型、等于类型的查询，不满足条件时终止
+            //todo optimizen 范围类型、等于类型、或者其他可能类型的查询，不满足条件时终止
             return $indexData;
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
