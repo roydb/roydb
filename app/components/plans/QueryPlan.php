@@ -211,7 +211,7 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->condition;
+                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
                 if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
@@ -252,7 +252,7 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->condition;
+                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
                 if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
@@ -294,9 +294,8 @@ class QueryPlan
 
         $filledWithLeftResult = false;
         if (count($leftResultSet) > 0) {
-            //todo bugfix fill可能会覆盖$this->condition
-            $whereCondition = $this->condition;
-            if ($this->condition instanceof Condition) {
+            $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+            if ($whereCondition instanceof Condition) {
                 if ($this->fillConditionWithResultSet($leftResultSet[0], $whereCondition)) {
                     $filledWithLeftResult = true;
                 }
@@ -315,8 +314,8 @@ class QueryPlan
         } else {
             $rightResultSet = [];
             foreach ($leftResultSet as $leftRow) {
-                $whereCondition = $this->condition;
-                if ($this->condition instanceof Condition) {
+                $whereCondition = $this->extractConditions($this->ast->getStmt()['WHERE']);
+                if ($whereCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
                     $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
