@@ -82,6 +82,9 @@ class QueryPlan
                             $newConditionTree->addSubConditions($condition);
                         }
                     } elseif ($expr['base_expr'] === 'and') {
+                        if ($condition->getOperator() === 'between') {
+                            continue;
+                        }
                         if (is_null($conditionTree->getLogicOperator())) {
                             $conditionTree->setLogicOperator('and');
                             $conditionTree->addSubConditions($condition);
@@ -156,7 +159,7 @@ class QueryPlan
             } else {
                 $resultSet = $this->storage->get(
                     $schema['table'],
-                    $this->condition
+                    $this->extractWhereConditions()
                 );
             }
         }
@@ -223,7 +226,7 @@ class QueryPlan
                 } else {
                     $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
                 }
-                $conditionTree->addSubConditions($this->condition);
+                $conditionTree->addSubConditions($whereCondition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
@@ -315,7 +318,7 @@ class QueryPlan
         if (!$filledWithLeftResult) {
             $rightResultSet = $this->storage->get(
                 $schema['table'],
-                $this->condition
+                $this->extractWhereConditions()
             );
         } else {
             $rightResultSet = [];
