@@ -155,7 +155,7 @@ class QueryPlan
             }
         }
 
-        $resultSet = $this->columnsFilter($resultSet, $this->columns);
+        $resultSet = $this->resultSetColumnsFilter($resultSet, $this->columns);
 
         return $resultSet;
     }
@@ -428,7 +428,7 @@ class QueryPlan
         return $result;
     }
 
-    protected function columnsFilter($resultSet, $columns = ['*'])
+    protected function resultSetColumnsFilter($resultSet, $columns = ['*'])
     {
         if (!in_array('*', $columns)) {
             foreach ($resultSet as $i => $row) {
