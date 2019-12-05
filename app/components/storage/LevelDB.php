@@ -272,25 +272,35 @@ class LevelDB extends AbstractStorage
                 if ($index === false) {
                     return [];
                 }
-                //todo customize btree, support lt
-                $indexData = $index->get($operandValue2);
-                if ($indexData === false) {
-                    return [];
-                } else {
-                    return [json_decode($indexData, true)];
+                $indexData = [];
+                $it = new \LevelDBIterator($index);
+                $lastIndexItem = $it->seek($operandValue1);
+                if ($lastIndexItem === null) {
+                    $it->last();
                 }
+                for(; $it->valid(); $it->prev()) {
+                    if ($it->key() < $operandValue2) {
+                        $indexData[] = json_decode($it->current(), true);
+                    }
+                }
+                return $indexData;
             } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
                 $index = $this->openBtree($schema . '.' . $operandValue2);
                 if ($index === false) {
                     return [];
                 }
-                //todo customize btree, support lt
-                $indexData = $index->get($operandValue1);
-                if ($indexData === false) {
-                    return [];
-                } else {
-                    return [json_decode($indexData, true)];
+                $indexData = [];
+                $it = new \LevelDBIterator($index);
+                $lastIndexItem = $it->seek($operandValue2);
+                if ($lastIndexItem === null) {
+                    $it->last();
                 }
+                for(; $it->valid(); $it->prev()) {
+                    if ($it->key() < $operandValue2) {
+                        $indexData[] = json_decode($it->current(), true);
+                    }
+                }
+                return $indexData;
             } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
                 if ($operandValue1 >= $operandValue2) {
                     return $this->fetchAllPrimaryIndexData($schema);
