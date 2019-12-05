@@ -195,111 +195,115 @@ class LevelDB extends AbstractStorage
         $operatorHandler = new OperatorHandler();
         $conditionOperator = $condition->getOperator();
         $operands = $condition->getOperands();
-        $operandValue1 = $operands[0]->getValue();
-        $operandType1 = $operands[0]->getType();
-        if ($operandType1 === 'colref') {
-            if (strpos($operandValue1, '.')) {
-                list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
-                if ($operandSchema1 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+        if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
+            $operandValue1 = $operands[0]->getValue();
+            $operandType1 = $operands[0]->getType();
+            if ($operandType1 === 'colref') {
+                if (strpos($operandValue1, '.')) {
+                    list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
+                    if ($operandSchema1 !== $schema) {
+                        return $this->fetchAllPrimaryIndexData($schema);
+                    }
                 }
             }
-        }
-        $operandValue2 = $operands[1]->getValue();
-        $operandType2 = $operands[1]->getType();
-        if ($operandType2 === 'colref') {
-            if (strpos($operandValue2, '.')) {
-                list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
-                if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+            $operandValue2 = $operands[1]->getValue();
+            $operandType2 = $operands[1]->getType();
+            if ($operandType2 === 'colref') {
+                if (strpos($operandValue2, '.')) {
+                    list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
+                    if ($operandSchema2 !== $schema) {
+                        return $this->fetchAllPrimaryIndexData($schema);
+                    }
                 }
+            }
+
+            if ($operandType1 === 'colref' && $operandType2 === 'const') {
+                $index = $this->openBtree($schema . '.' . $operandValue1);
+                if ($index === false) {
+                    return [];
+                }
+                $indexData = [];
+                $prevIt = new \LevelDBIterator($index);
+                if ($index->get($operandValue2) === false) {
+                    $prevIt->last();
+                } else {
+                    $prevIt->seek($operandValue2);
+                }
+                for (; $prevIt->valid(); $prevIt->prev()) {
+                    if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
+                        $indexData[] = json_decode($prevIt->current(), true);
+                    } else {
+                        if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
+                            break;
+                        }
+                    }
+                }
+                $nextIt = new \LevelDBIterator($index);
+                if ($index->get($operandValue2) !== false) {
+                    $nextIt->seek($operandValue2);
+                } else {
+                    $nextIt->rewind();
+                }
+                for (; $nextIt->valid(); $nextIt->next()) {
+                    if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
+                        $indexData[] = json_decode($nextIt->current(), true);
+                    } else {
+                        if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
+                            break;
+                        }
+                    }
+                }
+                return $indexData;
+            } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+                $index = $this->openBtree($schema . '.' . $operandValue2);
+                if ($index === false) {
+                    return [];
+                }
+                $indexData = [];
+                $prevIt = new \LevelDBIterator($index);
+                if ($index->get($operandValue1) === false) {
+                    $prevIt->last();
+                } else {
+                    $prevIt->seek($operandValue1);
+                }
+                for (; $prevIt->valid(); $prevIt->prev()) {
+                    if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
+                        $indexData[] = json_decode($prevIt->current(), true);
+                    } else {
+                        if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
+                            break;
+                        }
+                    }
+                }
+                $nextIt = new \LevelDBIterator($index);
+                if ($index->get($operandValue1) !== false) {
+                    $nextIt->seek($operandValue1);
+                } else {
+                    $nextIt->rewind();
+                }
+                for (; $nextIt->valid(); $nextIt->next()) {
+                    if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
+                        $indexData[] = json_decode($nextIt->current(), true);
+                    } else {
+                        if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
+                            break;
+                        }
+                    }
+                }
+                //todo optimizen 范围类型、等于类型、或者其他可能类型的查询，不满足条件时终止
+                return $indexData;
+            } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
+                    return $this->fetchAllPrimaryIndexData($schema);
+                } else {
+                    return [];
+                }
+            } else {
+                return $this->fetchAllPrimaryIndexData($schema);
             }
         }
 
-        if ($operandType1 === 'colref' && $operandType2 === 'const') {
-            $index = $this->openBtree($schema . '.' . $operandValue1);
-            if ($index === false) {
-                return [];
-            }
-            $indexData = [];
-            $prevIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue2) === false) {
-                $prevIt->last();
-            } else {
-                $prevIt->seek($operandValue2);
-            }
-            for(; $prevIt->valid(); $prevIt->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
-                    $indexData[] = json_decode($prevIt->current(), true);
-                } else {
-                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            $nextIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue2) !== false) {
-                $nextIt->seek($operandValue2);
-            } else {
-                $nextIt->rewind();
-            }
-            for(; $nextIt->valid();$nextIt->next()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
-                    $indexData[] = json_decode($nextIt->current(), true);
-                } else {
-                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            return $indexData;
-        } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
-            $index = $this->openBtree($schema . '.' . $operandValue2);
-            if ($index === false) {
-                return [];
-            }
-            $indexData = [];
-            $prevIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue1) === false) {
-                $prevIt->last();
-            } else {
-                $prevIt->seek($operandValue1);
-            }
-            for(; $prevIt->valid(); $prevIt->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
-                    $indexData[] = json_decode($prevIt->current(), true);
-                } else {
-                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            $nextIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue1) !== false) {
-                $nextIt->seek($operandValue1);
-            } else {
-                $nextIt->rewind();
-            }
-            for(; $nextIt->valid();$nextIt->next()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
-                    $indexData[] = json_decode($nextIt->current(), true);
-                } else {
-                    if (in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            //todo optimizen 范围类型、等于类型、或者其他可能类型的查询，不满足条件时终止
-            return $indexData;
-        } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
-            if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
-                return $this->fetchAllPrimaryIndexData($schema);
-            } else {
-                return [];
-            }
-        } else {
-            return $this->fetchAllPrimaryIndexData($schema);
-        }
+        return $this->fetchAllPrimaryIndexData($schema);
 
         //todo support more operators
     }
