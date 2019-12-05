@@ -166,6 +166,43 @@ class QueryPlan
         return $this->{$joinHandler}($resultSet, $schema);
     }
 
+    protected function fillConditionWithResultSet($resultRow, Condition $condition)
+    {
+        $filled = false;
+
+        $operands = $condition->getOperands();
+        foreach ($operands as $operandIndex => $operand) {
+            if ($operand->getType() === 'colref') {
+                $operandValue = $operand->getValue();
+                if (array_key_exists($operandValue, $resultRow)) {
+                    $operand->setValue($resultRow[$operandValue])->setType('const');
+                    $filled = true;
+                }
+            }
+        }
+
+        return $filled;
+    }
+
+    protected function fillConditionTreeWithResultSet($resultRow, ConditionTree $conditionTree)
+    {
+        $filled = false;
+
+        foreach ($conditionTree->getSubConditions() as $subCondition) {
+            if ($subCondition instanceof Condition) {
+                if ($this->fillConditionWithResultSet($resultRow, $subCondition)) {
+                    $filled = true;
+                }
+            } else {
+                if ($this->fillConditionTreeWithResultSet($resultRow, $subCondition)) {
+                    $filled = true;
+                }
+            }
+        }
+
+        return $filled;
+    }
+
     protected function innerJoinResultSet($leftResultSet, $schema)
     {
         $joinedResultSet = [];
@@ -174,33 +211,18 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                if ($this->condition instanceof Condition) {
-                    $operands = $this->condition->getOperands();
-                    foreach ($operands as $operandIndex => $operand) {
-                        if ($operand->getType() === 'colref') {
-                            $operandValue = $operand->getValue();
-                            if (array_key_exists($operandValue, $leftRow)) {
-                                $operand->setValue($leftRow[$operandValue])->setType('const');
-                            }
-                        }
-                    }
+                $whereCondition = $this->condition;
+                if ($whereCondition instanceof Condition) {
+                    $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
-                    //todo support condition tree
+                    $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
                 }
                 $conditionTree->addSubConditions($this->condition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
-                    $operands = $onCondition->getOperands();
-                    foreach ($operands as $operandIndex => $operand) {
-                        if ($operand->getType() === 'colref') {
-                            $operandValue = $operand->getValue();
-                            if (array_key_exists($operandValue, $leftRow)) {
-                                $operand->setValue($leftRow[$operandValue])->setType('const');
-                            }
-                        }
-                    }
+                    $this->fillConditionWithResultSet($leftRow, $onCondition);
                 } else {
-                    //todo support condition tree
+                    $this->fillConditionTreeWithResultSet($leftRow, $onCondition);
                 }
                 $conditionTree->addSubConditions($onCondition);
 
@@ -220,30 +242,6 @@ class QueryPlan
         return $joinedResultSet;
     }
 
-    protected function fillConditionWithResultSet($resultSet, Condition $condition)
-    {
-        $operands = $condition->getOperands();
-        foreach ($operands as $operandIndex => $operand) {
-            if ($operand->getType() === 'colref') {
-                $operandValue = $operand->getValue();
-                if (array_key_exists($operandValue, $resultSet)) {
-                    $operand->setValue($resultSet[$operandValue])->setType('const');
-                }
-            }
-        }
-    }
-
-    protected function fillConditionTreeWithResultSet($resultSet, ConditionTree $conditionTree)
-    {
-        foreach ($conditionTree->getSubConditions() as $subCondition) {
-            if ($subCondition instanceof Condition) {
-                $this->fillConditionWithResultSet($resultSet, $subCondition);
-            } else {
-                $this->fillConditionTreeWithResultSet($resultSet, $subCondition);
-            }
-        }
-    }
-
     protected function leftJoinResultSet($leftResultSet, $schema)
     {
         $joinedResultSet = [];
@@ -254,12 +252,13 @@ class QueryPlan
             if ($schema['ref_type'] === 'ON') {
                 $conditionTree = new ConditionTree();
                 $conditionTree->setLogicOperator('and');
-                if ($this->condition instanceof Condition) {
-                    $this->fillConditionWithResultSet($leftRow, $this->condition);
+                $whereCondition = $this->condition;
+                if ($whereCondition instanceof Condition) {
+                    $this->fillConditionWithResultSet($leftRow, $whereCondition);
                 } else {
-                    $this->fillConditionTreeWithResultSet($leftRow, $this->condition);
+                    $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
                 }
-                $conditionTree->addSubConditions($this->condition);
+                $conditionTree->addSubConditions($whereCondition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
@@ -289,11 +288,77 @@ class QueryPlan
         return $joinedResultSet;
     }
 
-    protected function rightJoinResultSet($resultSet, $schema)
+    protected function rightJoinResultSet($leftResultSet, $schema)
     {
-        //todo
+        $joinedResultSet = [];
 
-        return $resultSet;
+        $filledWithLeftResult = false;
+        if (count($leftResultSet) > 0) {
+            if ($this->condition instanceof Condition) {
+                if ($this->fillConditionWithResultSet($leftResultSet[0], $this->condition)) {
+                    $filledWithLeftResult = true;
+                }
+            } else {
+                if ($this->fillConditionTreeWithResultSet($leftResultSet[0], $this->condition)) {
+                    $filledWithLeftResult = true;
+                }
+            }
+        }
+
+        if (!$filledWithLeftResult) {
+            $rightResultSet = $this->storage->get(
+                $schema['table'],
+                $this->condition
+            );
+        } else {
+            $rightResultSet = [];
+            foreach ($leftResultSet as $leftRow) {
+                if ($this->condition instanceof Condition) {
+                    $this->fillConditionWithResultSet($leftRow, $this->condition);
+                } else {
+                    $this->fillConditionTreeWithResultSet($leftRow, $this->condition);
+                }
+
+                $rightResultSet = array_merge($rightResultSet, $this->storage->get(
+                    $schema['table'],
+                    $this->condition
+                ));
+            }
+            $idMap = [];
+            foreach ($rightResultSet as $i => $row) {
+                if (in_array($row['id'], $idMap)) {
+                    unset($rightResultSet[$i]);
+                } else {
+                    $idMap[] = $row['id'];
+                }
+            }
+        }
+
+        foreach ($rightResultSet as $rightRow) {
+            $joined = false;
+
+            if ($schema['ref_type'] === 'ON') {
+                $onCondition = $this->extractConditions($schema['ref_clause']);
+                if ($onCondition instanceof Condition) {
+                    $this->fillConditionWithResultSet($rightRow, $onCondition);
+                } else {
+                    $this->fillConditionTreeWithResultSet($rightRow, $onCondition);
+                }
+
+                foreach ($leftResultSet as $leftRow) {
+                    if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                        $joined = true;
+                    }
+                }
+            }
+
+            if (!$joined) {
+                $joinedResultSet[] = $rightRow; //todo fetch leftRow column from schema
+            }
+        }
+
+        return $joinedResultSet;
     }
 
     protected function joinConditionMatcher($leftRow, $rightRow, $condition)
