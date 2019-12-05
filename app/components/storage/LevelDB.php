@@ -221,14 +221,36 @@ class LevelDB extends AbstractStorage
                 return [];
             }
             $indexData = [];
-            $it = new \LevelDBIterator($index);
-            $lastIndexItem = $it->seek($operandValue1);
-            if ($lastIndexItem === null) {
-                $it->last();
+            $prevIt = new \LevelDBIterator($index);
+            if ($index->get($operandValue2) === false) {
+                $prevIt->last();
+            } else {
+                $prevIt->seek($operandValue2);
             }
-            for(; $it->valid(); $it->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$it->key(), $operandValue2])) {
-                    $indexData[] = json_decode($it->current(), true);
+            for(; $prevIt->valid(); $prevIt->prev()) {
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
+                    $indexData[] = json_decode($prevIt->current(), true);
+                } else {
+                    //todo const range operator
+                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                        break;
+                    }
+                }
+            }
+            $nextIt = new \LevelDBIterator($index);
+            if ($index->get($operandValue2) !== false) {
+                $nextIt->seek($operandValue2);
+            } else {
+                $nextIt->rewind();
+            }
+            for(; $nextIt->valid();$nextIt->next()) {
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
+                    $indexData[] = json_decode($nextIt->current(), true);
+                } else {
+                    //todo const range operator
+                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                        break;
+                    }
                 }
             }
             return $indexData;
@@ -238,16 +260,39 @@ class LevelDB extends AbstractStorage
                 return [];
             }
             $indexData = [];
-            $it = new \LevelDBIterator($index);
-            $lastIndexItem = $it->seek($operandValue2);
-            if ($lastIndexItem === null) {
-                $it->last();
+            $prevIt = new \LevelDBIterator($index);
+            if ($index->get($operandValue1) === false) {
+                $prevIt->last();
+            } else {
+                $prevIt->seek($operandValue1);
             }
-            for(; $it->valid(); $it->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $it->key()])) {
-                    $indexData[] = json_decode($it->current(), true);
+            for(; $prevIt->valid(); $prevIt->prev()) {
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
+                    $indexData[] = json_decode($prevIt->current(), true);
+                } else {
+                    //todo const range operator
+                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                        break;
+                    }
                 }
             }
+            $nextIt = new \LevelDBIterator($index);
+            if ($index->get($operandValue1) !== false) {
+                $nextIt->seek($operandValue1);
+            } else {
+                $nextIt->rewind();
+            }
+            for(; $nextIt->valid();$nextIt->next()) {
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
+                    $indexData[] = json_decode($nextIt->current(), true);
+                } else {
+                    //todo const range operator
+                    if (in_array($conditionOperator, ['=', '<', '<=', '>', '>='])) {
+                        break;
+                    }
+                }
+            }
+            //todo optimizen 范围类型、等于类型的查询，不满足条件时终止
             return $indexData;
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
