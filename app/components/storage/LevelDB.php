@@ -116,7 +116,6 @@ class LevelDB extends AbstractStorage
 
     protected function filterConditionTreeByIndexData($schema, $row, ConditionTree $conditionTree)
     {
-        //todo optimization 去重
         $subConditions = $conditionTree->getSubConditions();
         $result = true;
         foreach ($subConditions as $i => $subCondition) {
@@ -374,9 +373,26 @@ class LevelDB extends AbstractStorage
             $result = array_merge($result, $subResult);
         }
 
-        return $result;
+        $idMap = [];
+        foreach ($result as $i => $row) {
+            if (in_array($row['id'], $idMap)) {
+                unset($result[$i]);
+            } else {
+                $idMap[] = $row['id'];
+            }
+        }
+
+        return array_values($result);
     }
 
+    /**
+     * Fetching index data by single condition, then filtering index data by all conditions.
+     *
+     * @param $schema
+     * @param $condition
+     * @param array $columns
+     * @return array
+     */
     protected function conditionFilter($schema, $condition, $columns = ['*'])
     {
         //todo choose idx using plan
@@ -415,16 +431,7 @@ class LevelDB extends AbstractStorage
             $indexData = $this->fetchAllPrimaryIndexData($schema);
         }
 
-        $idMap = [];
         foreach ($indexData as $i => $row) {
-            if (!is_null($condition)) {
-                if (in_array($row['id'], $idMap)) {
-                    unset($indexData[$i]);
-                    continue;
-                } else {
-                    $idMap[] = $row['id'];
-                }
-            }
             foreach ($row as $column => $value) {
                 $row[$schema . '.' . $column] = $value;
             }

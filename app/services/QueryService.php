@@ -67,9 +67,10 @@ class QueryService extends BaseService
 //            ],
 //        ];
 
+        $start = microtime(true);
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql);
-        $plan = Plan::create($ast, new LevelDB());
+        $plan = Plan::create($ast, new LevelDB()); //todo optimization object pool
         $resultSet = $plan->execute();
 
         return [
@@ -77,6 +78,7 @@ class QueryService extends BaseService
             'msg' => 'ok',
             'data' => [
                 'result_set' => $resultSet,
+                'time_usage' => microtime(true) - $start,
             ],
         ];
     }
