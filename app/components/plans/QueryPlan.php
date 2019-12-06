@@ -37,7 +37,7 @@ class QueryPlan
     {
         $this->ast = $ast;
 
-        var_dump($ast->getStmt());die;
+//        var_dump($ast->getStmt());die;
 
         $this->storage = $storage;
 

@@ -4,7 +4,7 @@ namespace App\services;
 
 use App\components\Parser;
 use App\components\plans\Plan;
-use App\components\storage\LevelDB;
+use App\components\storage\leveldb\LevelDB;
 use SwFwLess\services\BaseService;
 
 class QueryService extends BaseService
@@ -70,7 +70,7 @@ class QueryService extends BaseService
         $start = microtime(true);
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql);
-        $plan = Plan::create($ast, new LevelDB()); //todo optimization object pool
+        $plan = Plan::create($ast, LevelDB::create());
         $resultSet = $plan->execute();
 
         return [

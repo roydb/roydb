@@ -8,6 +8,7 @@ return [
     //App Providers
     \SwFwLess\components\swoole\SwooleProvider::class,
     \SwFwLess\components\chaos\ChaosProvider::class,
+    \App\components\storage\leveldb\LevelDBProvider::class,
 
     //Worker Providers
     \SwFwLess\components\datetime\DatetimeProvider::class,

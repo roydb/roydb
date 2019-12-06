@@ -1,15 +1,28 @@
 <?php
 
-namespace App\components\storage;
+namespace App\components\storage\leveldb;
 
 use App\components\consts\Operator;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\math\OperatorHandler;
+use App\components\storage\AbstractStorage;
+use SwFwLess\components\traits\Singleton;
 
 class LevelDB extends AbstractStorage
 {
+    use Singleton;
+
     protected $btreeMap = [];
+
+    private function __construct()
+    {
+        //todo read metadata
+        $this->openBtree('test');
+        $this->openBtree('test.name');
+        $this->openBtree('test2');
+        $this->openBtree('test2.name');
+    }
 
     public function get($schema, $condition, $columns = ['*'])
     {
@@ -18,8 +31,6 @@ class LevelDB extends AbstractStorage
 
     protected function openBtree($name, $new = false)
     {
-        //todo leveldb只能被一个进程打开，通过task进程做代理调用leveldb(协程)
-
         if (isset($this->btreeMap[$name])) {
             return $this->btreeMap[$name];
         }
