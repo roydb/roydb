@@ -17,7 +17,6 @@ class LevelDB extends AbstractStorage
 
     private function __construct()
     {
-        //todo read metadata
         $this->openBtree('meta.schema');
         $this->openBtree('test');
         $this->openBtree('test.name');
@@ -82,13 +81,12 @@ class LevelDB extends AbstractStorage
 
     protected function fetchAllPrimaryIndexData($schema)
     {
-        //todo bugfix 支持一个 name=foo 对应多条记录
         $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
         }
         $indexData = array();
-        $it = new \LevelDBIterator($index); // equals to： $it = $db->getIterator();
+        $it = new \LevelDBIterator($index);
         foreach($it as $key => $value) {
             $indexData[] = json_decode($value, true);
         }

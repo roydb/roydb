@@ -212,9 +212,11 @@ class QueryPlan
         foreach ($operands as $operandIndex => $operand) {
             if ($operand->getType() === 'colref') {
                 $operandValue = $operand->getValue();
-                if (array_key_exists($operandValue, $resultRow)) {
-                    $operand->setValue($resultRow[$operandValue])->setType('const');
-                    $filled = true;
+                if (strpos($operandValue, '.')) {
+                    if (array_key_exists($operandValue, $resultRow)) {
+                        $operand->setValue($resultRow[$operandValue])->setType('const');
+                        $filled = true;
+                    }
                 }
             }
         }
@@ -284,6 +286,14 @@ class QueryPlan
     {
         $joinedResultSet = [];
 
+        $schemaTable = $schema['table'];
+        $schemaMetaData = $this->storage->getSchemaMetaData($schemaTable);
+        $schemaColumns = array_column($schemaMetaData['columns'], 'name');
+        $emptyRightRow = [];
+        foreach ($schemaColumns as $schemaColumn) {
+            $emptyRightRow[$schemaColumn] = null;
+        }
+
         foreach ($leftResultSet as $leftRow) {
             $joined = false;
 
@@ -305,10 +315,7 @@ class QueryPlan
                 }
                 $conditionTree->addSubConditions($onCondition);
 
-                $rightResultSet = $this->storage->get(
-                    $schema['table'],
-                    $conditionTree
-                );
+                $rightResultSet = $this->storage->get($schemaTable, $conditionTree);
 
                 foreach ($rightResultSet as $rightRow) {
                     if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
@@ -319,7 +326,7 @@ class QueryPlan
             }
 
             if (!$joined) {
-                $joinedResultSet[] = $leftRow; //todo fetch rightRow column from schema
+                $joinedResultSet[] = $leftRow + $emptyRightRow;
             }
         }
 
@@ -329,6 +336,14 @@ class QueryPlan
     protected function rightJoinResultSet($leftResultSet, $schema)
     {
         $joinedResultSet = [];
+
+        $schemaTable = $schema['table'];
+        $schemaMetaData = $this->storage->getSchemaMetaData($schemaTable);
+        $schemaColumns = array_column($schemaMetaData['columns'], 'name');
+        $emptyLeftRow = [];
+        foreach ($schemaColumns as $schemaColumn) {
+            $emptyLeftRow[$schemaColumn] = null;
+        }
 
         $filledWithLeftResult = false;
         if (count($leftResultSet) > 0) {
@@ -346,7 +361,7 @@ class QueryPlan
 
         if (!$filledWithLeftResult) {
             $rightResultSet = $this->storage->get(
-                $schema['table'],
+                $schemaTable,
                 $this->extractWhereConditions()
             );
         } else {
@@ -360,7 +375,7 @@ class QueryPlan
                 }
 
                 $rightResultSet = array_merge($rightResultSet, $this->storage->get(
-                    $schema['table'],
+                    $schemaTable,
                     $whereCondition
                 ));
             }
@@ -394,7 +409,7 @@ class QueryPlan
             }
 
             if (!$joined) {
-                $joinedResultSet[] = $rightRow; //todo fetch leftRow column from schema
+                $joinedResultSet[] = $emptyLeftRow + $rightRow;
             }
         }
 
