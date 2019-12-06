@@ -395,7 +395,7 @@ class LevelDB extends AbstractStorage
      */
     protected function conditionFilter($schema, $condition, $columns = ['*'])
     {
-        //todo choose idx using plan
+        //todo choose idx using plan, maybe using optimizer ?
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
                 $indexData = $this->filterCondition($schema, $condition);

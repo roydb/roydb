@@ -37,7 +37,7 @@ class QueryPlan
     {
         $this->ast = $ast;
 
-//        var_dump($ast->getStmt());die;
+        var_dump($ast->getStmt());die;
 
         $this->storage = $storage;
 
@@ -58,6 +58,7 @@ class QueryPlan
 
     protected function extractColumns()
     {
+        //todo support agg function using column object
         $select = $this->ast->getStmt()['SELECT'];
         $this->columns = array_column($select, 'base_expr');
     }
