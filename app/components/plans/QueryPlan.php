@@ -28,6 +28,7 @@ class QueryPlan
 
     protected $schemas;
 
+    /** @var Condition|ConditionTree|null  */
     protected $condition;
 
     /** @var Order[] */
