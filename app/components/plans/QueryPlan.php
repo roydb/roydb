@@ -384,18 +384,22 @@ class QueryPlan
     protected function matchJoinCondition($leftRow, $rightRow, Condition $condition)
     {
         $operands = $condition->getOperands();
+
+        $operandValues = [];
         foreach ($operands as $operandIndex => $operand) {
+            $operandValue = $operand->getValue();
             if ($operand->getType() === 'colref') {
-                $operandValue = $operand->getValue();
                 if (array_key_exists($operandValue, $leftRow)) {
-                    $operand->setValue($leftRow[$operandValue])->setType('const');
+                    $operandValues[] = $leftRow[$operandValue];
                 } elseif (array_key_exists($operandValue, $rightRow)) {
-                    $operand->setValue($rightRow[$operandValue])->setType('const');
+                    $operandValues[] = $rightRow[$operandValue];
                 }
+            } else {
+                $operandValues[] = $operandValue;
             }
         }
 
-        return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operands);
+        return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operandValues);
 
         //todo support more operators
     }

@@ -86,80 +86,37 @@ class LevelDB extends AbstractStorage
 
     protected function filterConditionByIndexData($schema, $row, Condition $condition)
     {
-        if ($condition->getOperator() === '=') {
-            $operands = $condition->getOperands();
-            $operandValue1 = $operands[0]->getValue();
-            $operandType1 = $operands[0]->getType();
-            if ($operandType1 === 'colref') {
-                if (strpos($operandValue1, '.')) {
-                    list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
-                    if ($operandSchema1 !== $schema) {
-                        return true;
-                    }
-                }
-            }
-            $operandValue2 = $operands[1]->getValue();
-            $operandType2 = $operands[1]->getType();
-            if ($operandType2 === 'colref') {
-                if (strpos($operandValue2, '.')) {
-                    list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
-                    if ($operandSchema2 !== $schema) {
-                        return true;
-                    }
-                }
-            }
+        $operands = $condition->getOperands();
 
-            if ($operandType1 === 'colref' && $operandType2 === 'const') {
-                if (!array_key_exists($operandValue1, $row)) {
-                    $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                }
-                if (!array_key_exists($operandValue1, $row)) {
-                    return true;
-                }
-                if ($row[$operandValue1] !== $operandValue2) {
-                    return false;
-                }
-            } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
-                if (!array_key_exists($operandValue2, $row)) {
-                    $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                }
-                if (!array_key_exists($operandValue2, $row)) {
-                    return true;
-                }
-                if ($row[$operandValue2] !== $operandValue1) {
-                    return false;
-                }
-            } elseif ($operandType1 === 'colref' && $operandType2 === 'colref') {
-                $backToPrimaryIndex = false;
-                if (!$backToPrimaryIndex) {
-                    if (!array_key_exists($operandValue1, $row)) {
-                        $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+        $operandValues = [];
+        foreach ($operands as $operand) {
+            $operandType = $operand->getType();
+            $operandValue = $operand->getValue();
+            if ($operandType === 'colref') {
+                if (strpos($operandValue, '.')) {
+                    list($operandSchema, $operandValue) = explode('.', $operandValue);
+                    if ($operandSchema !== $schema) {
+                        return true;
                     }
                 }
-                if (!array_key_exists($operandValue1, $row)) {
+                if (!array_key_exists($operandValue, $row)) {
+                    $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+                }
+                if (!array_key_exists($operandValue, $row)) {
                     return true;
                 }
-                if (!$backToPrimaryIndex) {
-                    if (!array_key_exists($operandValue2, $row)) {
-                        $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                    }
-                }
-                if (!array_key_exists($operandValue2, $row)) {
-                    return true;
-                }
-                if ($row[$operandValue1] !== $row[$operandValue2]) {
-                    return false;
-                }
+                $operandValues[] = $row[$operandValue];
+            } else {
+                $operandValues[] = $operandValue;
             }
         }
 
-        //todo support more operators
-
-        return true;
+        return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operandValues);
     }
 
     protected function filterConditionTreeByIndexData($schema, $row, ConditionTree $conditionTree)
     {
+        //todo optimization 去重
         $subConditions = $conditionTree->getSubConditions();
         $result = true;
         foreach ($subConditions as $i => $subCondition) {
