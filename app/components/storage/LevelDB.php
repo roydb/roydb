@@ -18,6 +18,8 @@ class LevelDB extends AbstractStorage
 
     protected function openBtree($name, $new = false)
     {
+        //todo leveldb只能被一个进程打开，通过task进程做代理调用leveldb(协程)
+
         if (isset($this->btreeMap[$name])) {
             return $this->btreeMap[$name];
         }
