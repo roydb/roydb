@@ -380,44 +380,50 @@ class LevelDB extends AbstractStorage
     protected function conditionFilter($schema, $condition, $columns = ['*'])
     {
         //todo choose idx using plan
-        if ($condition instanceof Condition) {
-            $indexData = $this->filterCondition($schema, $condition);
-            foreach ($indexData as $i => $row) {
-                if (!$this->filterConditionByIndexData($schema, $row, $condition)) {
-                    unset($indexData[$i]);
+        if (!is_null($condition)) {
+            if ($condition instanceof Condition) {
+                $indexData = $this->filterCondition($schema, $condition);
+                foreach ($indexData as $i => $row) {
+                    if (!$this->filterConditionByIndexData($schema, $row, $condition)) {
+                        unset($indexData[$i]);
+                    }
                 }
-            }
-        } else {
-            $indexData = $this->filterConditionTree($schema, $condition);
-            foreach ($indexData as $i => $row) {
-                if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
-                    unset($indexData[$i]);
-                }
-            }
-        }
-
-        if (in_array('*', $columns)) {
-            foreach ($indexData as $i => $row) {
-                $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-            }
-        } else {
-            foreach ($indexData as $i => $row) {
-                foreach ($columns as $column) {
-                    if (!array_key_exists($column, $indexData[0])) {
-                        $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                        break;
+            } else {
+                $indexData = $this->filterConditionTree($schema, $condition);
+                foreach ($indexData as $i => $row) {
+                    if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
+                        unset($indexData[$i]);
                     }
                 }
             }
+
+            if (in_array('*', $columns)) {
+                foreach ($indexData as $i => $row) {
+                    $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+                }
+            } else {
+                foreach ($indexData as $i => $row) {
+                    foreach ($columns as $column) {
+                        if (!array_key_exists($column, $indexData[0])) {
+                            $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            $indexData = $this->fetchAllPrimaryIndexData($schema);
         }
 
         $idMap = [];
         foreach ($indexData as $i => $row) {
-            if (in_array($row['id'], $idMap)) {
-                unset($indexData[$i]);
-                continue;
-            } else {
-                $idMap[] = $row['id'];
+            if (!is_null($condition)) {
+                if (in_array($row['id'], $idMap)) {
+                    unset($indexData[$i]);
+                    continue;
+                } else {
+                    $idMap[] = $row['id'];
+                }
             }
             foreach ($row as $column => $value) {
                 $row[$schema . '.' . $column] = $value;

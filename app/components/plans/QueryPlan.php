@@ -49,6 +49,10 @@ class QueryPlan
 
     protected function extractWhereConditions()
     {
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['WHERE'])) {
+            return null;
+        }
         return $this->extractConditions($this->ast->getStmt()['WHERE']);
     }
 
