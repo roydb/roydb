@@ -221,7 +221,7 @@ class LevelDB extends AbstractStorage
         if ($operandType1 === 'colref' && $operandType2 === 'const') {
             $index = $this->openBtree($schema . '.' . $operandValue1);
             if ($index === false) {
-                return [];
+                return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
             $matched = false;
@@ -264,7 +264,7 @@ class LevelDB extends AbstractStorage
         } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
             $index = $this->openBtree($schema . '.' . $operandValue2);
             if ($index === false) {
-                return [];
+                return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
             $matched = false;
@@ -358,7 +358,7 @@ class LevelDB extends AbstractStorage
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
             $index = $this->openBtree($schema . '.' . $operandValue1);
             if ($index === false) {
-                return [];
+                return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
             $matched = false;
