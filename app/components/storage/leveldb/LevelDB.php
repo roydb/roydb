@@ -35,9 +35,10 @@ class LevelDB extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
-    public function get($schema, $condition, $columns = ['*'])
+    public function get($schema, $condition)
     {
-        return $this->conditionFilter($schema, $condition, $columns);
+        //todo $columns 应该是plan选择过的，因为某些字段不需要返回，但是查询条件可能需要用到
+        return $this->conditionFilter($schema, $condition);
     }
 
     protected function openBtree($name, $new = false)
@@ -413,10 +414,9 @@ class LevelDB extends AbstractStorage
      *
      * @param $schema
      * @param $condition
-     * @param array $columns
      * @return array
      */
-    protected function conditionFilter($schema, $condition, $columns = ['*'])
+    protected function conditionFilter($schema, $condition)
     {
         //todo choose idx using plan, maybe using optimizer ?
         if (!is_null($condition)) {
@@ -436,19 +436,8 @@ class LevelDB extends AbstractStorage
                 }
             }
 
-            if (in_array('*', $columns)) {
-                foreach ($indexData as $i => $row) {
-                    $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                }
-            } else {
-                foreach ($indexData as $i => $row) {
-                    foreach ($columns as $column) {
-                        if (!array_key_exists($column, $indexData[0])) {
-                            $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
-                            break;
-                        }
-                    }
-                }
+            foreach ($indexData as $i => $row) {
+                $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
             }
         } else {
             $indexData = $this->fetchAllPrimaryIndexData($schema);

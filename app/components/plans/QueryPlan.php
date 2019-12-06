@@ -291,7 +291,7 @@ class QueryPlan
         $schemaColumns = array_column($schemaMetaData['columns'], 'name');
         $emptyRightRow = [];
         foreach ($schemaColumns as $schemaColumn) {
-            $emptyRightRow[$schemaColumn] = null;
+            $emptyRightRow[$schemaColumn] = $emptyRightRow[$schemaTable . '.' . $schemaColumn] = null;
         }
 
         foreach ($leftResultSet as $leftRow) {
@@ -326,6 +326,7 @@ class QueryPlan
             }
 
             if (!$joined) {
+                //todo bugfix
                 $joinedResultSet[] = $leftRow + $emptyRightRow;
             }
         }
@@ -342,7 +343,7 @@ class QueryPlan
         $schemaColumns = array_column($schemaMetaData['columns'], 'name');
         $emptyLeftRow = [];
         foreach ($schemaColumns as $schemaColumn) {
-            $emptyLeftRow[$schemaColumn] = null;
+            $emptyLeftRow[$schemaColumn] = $emptyLeftRow[$schemaTable . '.' . $schemaColumn] = null;
         }
 
         $filledWithLeftResult = false;
