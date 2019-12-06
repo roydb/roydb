@@ -49,13 +49,13 @@ class QueryService extends BaseService
 //        if (!is_dir(\SwFwLess\facades\File::storagePath() . '/btree')) {
 //            mkdir(\SwFwLess\facades\File::storagePath() . '/btree', 0777, true);
 //        }
-//        $fieldIdx = $this->openBtree('test.name', true);
-//        $fieldIdx->set('foo', json_encode(['id' => 1]));
 //        $primaryIdx = $this->openBtree('test', true);
+//        $fieldIdx = $this->openBtree('test.name', true);
+//        $fieldIdx->set('foo', json_encode([['id' => 1]]));
 //        $primaryIdx->set(1, json_encode(['id' => 1, 'type' => 1, 'name' => 'foo']));
-//        $fieldIdx->set('goo', json_encode(['id' => 2]));
+//        $fieldIdx->set('goo', json_encode([['id' => 2]]));
 //        $primaryIdx->set(2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
-//        $fieldIdx->set('zoo', json_encode(['id' => 3]));
+//        $fieldIdx->set('zoo', json_encode([['id' => 3]]));
 //        $primaryIdx->set(3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
 //        var_dump($fieldIdx->get('foo'));
 //        var_dump($fieldIdx->get('haha'));

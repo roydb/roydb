@@ -191,7 +191,7 @@ class LevelDB extends AbstractStorage
             }
             for (; $prevIt->valid(); $prevIt->prev()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
-                    $indexData[] = json_decode($prevIt->current(), true);
+                    $indexData = array_merge($indexData, json_decode($prevIt->current(), true));
                     $matched = true;
                 } else {
                     if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
@@ -209,7 +209,7 @@ class LevelDB extends AbstractStorage
             }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
-                    $indexData[] = json_decode($nextIt->current(), true);
+                    $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
                     $matched = true;
                 } else {
                     if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
@@ -234,7 +234,7 @@ class LevelDB extends AbstractStorage
             }
             for (; $prevIt->valid(); $prevIt->prev()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
-                    $indexData[] = json_decode($prevIt->current(), true);
+                    $indexData = array_merge(json_decode($prevIt->current(), true));
                     $matched = true;
                 } else {
                     if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
@@ -252,7 +252,7 @@ class LevelDB extends AbstractStorage
             }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
-                    $indexData[] = json_decode($nextIt->current(), true);
+                    $indexData = array_merge(json_decode($nextIt->current(), true));
                     $matched = true;
                 } else {
                     if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
@@ -331,7 +331,7 @@ class LevelDB extends AbstractStorage
                     $conditionOperator,
                     ...[$nextIt->key(), $operandValue2, $operandValue3]
                 )) {
-                    $indexData[] = json_decode($nextIt->current(), true);
+                    $indexData = array_merge(json_decode($nextIt->current(), true));
                     $matched = true;
                 } else {
                     if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
