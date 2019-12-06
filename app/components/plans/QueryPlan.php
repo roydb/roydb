@@ -6,6 +6,7 @@ use App\components\Ast;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
+use App\components\elements\Order;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 
@@ -29,14 +30,21 @@ class QueryPlan
 
     protected $condition;
 
+    /** @var Order[] */
+    protected $orders;
+
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
+
+//        var_dump($ast->getStmt());die;
+
         $this->storage = $storage;
 
         $this->extractColumns();
         $this->extractSchemas();
         $this->condition = $this->extractWhereConditions();
+        $this->extractOrders();
     }
 
     protected function extractWhereConditions()
@@ -54,7 +62,6 @@ class QueryPlan
     {
         $from = $this->ast->getStmt()['FROM'];
         $this->schemas = $from;
-//        var_dump($this->ast->getStmt());
     }
 
     protected function extractConditions($conditionExpr)
@@ -149,6 +156,21 @@ class QueryPlan
         }
     }
 
+    protected function extractOrders()
+    {
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['ORDER'])) {
+            return;
+        }
+        $orders = $this->ast->getStmt()['ORDER'];
+        $this->orders = [];
+        foreach ($orders as $order) {
+            $this->orders[] = (new Order())->setType($order['expr_type'])
+                ->setValue($order['base_expr'])
+                ->setDirection($order['direction']);
+        }
+    }
+
     public function execute()
     {
         $resultSet = [];
@@ -164,7 +186,8 @@ class QueryPlan
             }
         }
 
-        $resultSet = $this->resultSetColumnsFilter($resultSet, $this->columns);
+        $resultSet = $this->resultSetOrder($resultSet);
+        $resultSet = $this->resultSetColumnsFilter($resultSet);
 
         return $resultSet;
     }
@@ -438,12 +461,36 @@ class QueryPlan
         return $result;
     }
 
-    protected function resultSetColumnsFilter($resultSet, $columns = ['*'])
+    protected function resultSetOrder($resultSet)
     {
-        if (!in_array('*', $columns)) {
+        if (is_null($this->orders)) {
+            return $resultSet;
+        }
+
+        $sortFuncParams = [];
+
+        foreach ($this->orders as $order) {
+            if ($order->getType() === 'const') {
+                continue;
+            }
+
+            $sortFuncParams[] = array_column($resultSet, $order->getValue());
+            $sortFuncParams[] = $order->getDirection() === 'ASC' ? SORT_ASC : SORT_DESC;
+        }
+
+        $sortFuncParams[] = &$resultSet;
+
+        array_multisort(...$sortFuncParams);
+
+        return $resultSet;
+    }
+
+    protected function resultSetColumnsFilter($resultSet)
+    {
+        if (!in_array('*', $this->columns)) {
             foreach ($resultSet as $i => $row) {
                 foreach ($row as $k => $v) {
-                    if (!in_array($k, $columns)) {
+                    if (!in_array($k, $this->columns)) {
                         unset($row[$k]);
                     }
                 }
