@@ -18,10 +18,22 @@ class LevelDB extends AbstractStorage
     private function __construct()
     {
         //todo read metadata
+        $this->openBtree('meta.schema');
         $this->openBtree('test');
         $this->openBtree('test.name');
         $this->openBtree('test2');
         $this->openBtree('test2.name');
+    }
+
+    public function getSchemaMetaData($schema)
+    {
+        $metaSchema = $this->openBtree('meta.schema');
+        $schemaData = $metaSchema->get($schema);
+        if ($schemaData === false) {
+            return null;
+        }
+
+        return json_decode($schemaData, true);
     }
 
     public function get($schema, $condition, $columns = ['*'])

@@ -67,6 +67,75 @@ class QueryService extends BaseService
 //            ],
 //        ];
 
+//        if (!is_dir(\SwFwLess\facades\File::storagePath() . '/btree')) {
+//            mkdir(\SwFwLess\facades\File::storagePath() . '/btree', 0777, true);
+//        }
+//
+//        $schemaData = $this->openBtree('meta.schema', true);
+//        $schemaData->set('test', json_encode([
+//            'pk' => 'id',
+//            'columns' => [
+//                [
+//                    'name' => 'id',
+//                    'type' => 'int',
+//                    'length' => 11,
+//                ],
+//                [
+//                    'name' => 'type',
+//                    'type' => 'int',
+//                    'length' => 11,
+//                ],
+//                [
+//                    'name' => 'name',
+//                    'type' => 'varchar',
+//                    'length' => 255,
+//                ],
+//            ],
+//            'index' => [
+//                [
+//                    'name' => 'name',
+//                    'columns' => ['name'],
+//                    'unique' => false,
+//                ],
+//            ],
+//        ]));
+//        $schemaData->set('test2', json_encode([
+//            'pk' => 'id',
+//            'columns' => [
+//                [
+//                    'name' => 'id',
+//                    'type' => 'int',
+//                    'length' => 11,
+//                ],
+//                [
+//                    'name' => 'type',
+//                    'type' => 'int',
+//                    'length' => 11,
+//                ],
+//                [
+//                    'name' => 'name',
+//                    'type' => 'varchar',
+//                    'length' => 255,
+//                ],
+//            ],
+//            'index' => [
+//                [
+//                    'name' => 'name',
+//                    'columns' => ['name'],
+//                    'unique' => false,
+//                ],
+//            ],
+//        ]));
+//        var_dump($schemaData->get('test'));
+//        var_dump($schemaData->get('test2'));
+//        return [
+//            'code' => 0,
+//            'msg' => 'ok',
+//            'data' => [
+//                'result_set' => [],
+//            ],
+//        ];
+
         $start = microtime(true);
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql);
