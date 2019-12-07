@@ -3,6 +3,7 @@
 namespace App\components\plans;
 
 use App\components\Ast;
+use App\components\elements\Column;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
@@ -24,6 +25,7 @@ class QueryPlan
     /** @var AbstractStorage */
     protected $storage;
 
+    /** @var Column[] */
     protected $columns;
 
     protected $schemas;
@@ -42,7 +44,7 @@ class QueryPlan
 
         $this->storage = $storage;
 
-        $this->extractColumns();
+        $this->columns = $this->extractColumns($ast->getStmt()['SELECT']);
         $this->extractSchemas();
         $this->condition = $this->extractWhereConditions();
         $this->extractOrders();
@@ -57,11 +59,20 @@ class QueryPlan
         return $this->extractConditions($this->ast->getStmt()['WHERE']);
     }
 
-    protected function extractColumns()
+    protected function extractColumns($selectExpr)
     {
-        //todo support agg function using column object
-        $select = $this->ast->getStmt()['SELECT'];
-        $this->columns = array_column($select, 'base_expr');
+        $columns = [];
+        foreach ($selectExpr as $columnExpr) {
+            $column = (new Column())->setType($columnExpr['expr_type'])
+                ->setAlias($columnExpr['alias'])
+                ->setValue($columnExpr['base_expr']);
+            if ($columnExpr['sub_tree'] !== false) {
+                $column->setSubColumns($this->extractColumns($columnExpr['sub_tree']));
+            }
+            $columns[] = $column;
+        }
+
+        return $columns;
     }
 
     protected function extractSchemas()
@@ -192,8 +203,12 @@ class QueryPlan
             }
         }
 
+        $columns = array_merge(
+            $this->columns,
+            $this->resultSetUdfFilter($this->columns, $resultSet)
+        );
         $resultSet = $this->resultSetOrder($resultSet);
-        $resultSet = $this->resultSetColumnsFilter($resultSet);
+        $resultSet = $this->resultSetColumnsFilter($columns, $resultSet);
 
         return $resultSet;
     }
@@ -483,6 +498,68 @@ class QueryPlan
         return $result;
     }
 
+    protected function executeUdf($udfName, Column $column, $row)
+    {
+        $udf = null;
+
+        if (function_exists($udfName)) {
+            $udf = $udfName;
+        }
+
+        if ($column->getType() === 'const') {
+            return call_user_func_array($udf, [$column->getValue()]);
+        } elseif ($column->getType() === 'colref') {
+            return call_user_func_array($udf, [$row[$column->getValue()]]);
+        }
+
+        return $row;
+    }
+
+    /**
+     * @param Column[] $columns
+     * @param $resultSet
+     * @return array
+     */
+    protected function resultSetUdfFilter($columns, &$resultSet)
+    {
+        $udfResultColumns = [];
+
+        foreach ($columns as $column) {
+            if (in_array($column->getType(), ['aggregate_function', 'function'])) {
+                $udf = $column->getValue();
+                foreach ($column->getSubColumns() as $subColumn) {
+                    if ($subColumn->hasSubColumns()) {
+                        /** @var Column[] $childUdfResultColumns */
+                        $childUdfResultColumns = $this->resultSetUdfFilter($subColumn->getSubColumns(), $resultSet);
+                        foreach ($childUdfResultColumns as $childUdfResultColumn) {
+                            $udfResultColumnName = $udf . '(' . $childUdfResultColumn->getValue() . ')';
+                            $udfResultColumn = new Column();
+                            $udfResultColumn->setType('colref')
+                                ->setValue($udfResultColumnName)
+                                ->setAlias($column->getAlias());
+                            $udfResultColumns[] = $udfResultColumn;
+                            foreach ($resultSet as $i => $row) {
+                                $resultSet[$i][$udfResultColumnName] = $this->executeUdf($udf, $childUdfResultColumn, $row);
+                            }
+                        }
+                    } else {
+                        $udfResultColumnName = $udf . '(' . $subColumn->getValue() . ')';
+                        $udfResultColumn = new Column();
+                        $udfResultColumn->setType('colref')
+                            ->setValue($udfResultColumnName)
+                            ->setAlias($column->getAlias());
+                        $udfResultColumns[] = $udfResultColumn;
+                        foreach ($resultSet as $i => $row) {
+                            $resultSet[$i][$udfResultColumnName] = $this->executeUdf($udf, $subColumn, $row);
+                        }
+                    }
+                }
+            }
+        }
+
+        return $udfResultColumns;
+    }
+
     protected function resultSetOrder($resultSet)
     {
         if (is_null($this->orders)) {
@@ -507,12 +584,45 @@ class QueryPlan
         return $resultSet;
     }
 
-    protected function resultSetColumnsFilter($resultSet)
+    /**
+     * @param Column[] $columns
+     * @param $resultSet
+     * @return mixed
+     */
+    protected function resultSetColumnsFilter($columns, $resultSet)
     {
-        if (!in_array('*', $this->columns)) {
+        $columnNames = [];
+        /** @var Column[] $constColumns */
+        $constColumns = [];
+        /** @var Column[] $aliasColumns */
+        $aliasColumns = [];
+        foreach ($columns as $column) {
+            if (!$column->hasSubColumns()) {
+                $columnAlias = $column->getAlias();
+                $columnAliasName = isset($columnAlias) ? $columnAlias['name'] : null;
+                $columnNames[] = $columnAliasName ?? $column->getValue();
+                if (!is_null($columnAlias)) {
+                    $aliasColumns[] = $column;
+                }
+                if ($column->getType() === 'const') {
+                    $constColumns[] = $column;
+                }
+            }
+        }
+        if (!in_array('*', $columnNames)) {
             foreach ($resultSet as $i => $row) {
+                foreach ($constColumns as $constColumn) {
+                    $constColumnAlias = $constColumn->getAlias();
+                    $constColumnAliasName = isset($constColumnAlias) ?
+                        $constColumnAlias['name'] :
+                        $constColumn->getValue();
+                    $row[$constColumnAliasName] = $constColumn->getValue();
+                }
+                foreach ($aliasColumns as $aliasColumn) {
+                    $row[$aliasColumn->getAlias()['name']] = $row[$aliasColumn->getValue()];
+                }
                 foreach ($row as $k => $v) {
-                    if (!in_array($k, $this->columns)) {
+                    if (!in_array($k, $columnNames)) {
                         unset($row[$k]);
                     }
                 }

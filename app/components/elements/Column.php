@@ -4,11 +4,11 @@ namespace App\components\elements;
 
 class Column
 {
-    //todo support agg function
-
     protected $type;
 
     protected $value;
+
+    protected $alias;
 
     /** @var Column[]  */
     protected $subColumns = [];
@@ -30,6 +30,16 @@ class Column
     public function setValue($value): self
     {
         $this->value = $value;
+        return $this;
+    }
+
+    /**
+     * @param $alias
+     * @return $this
+     */
+    public function setAlias($alias): self
+    {
+        $this->alias = $alias;
         return $this;
     }
 
@@ -60,10 +70,26 @@ class Column
     }
 
     /**
+     * @return mixed
+     */
+    public function getAlias()
+    {
+        return $this->alias;
+    }
+
+    /**
      * @return Column[]
      */
     public function getSubColumns(): array
     {
         return $this->subColumns;
+    }
+
+    /**
+     * @return bool
+     */
+    public function hasSubColumns(): bool
+    {
+        return isset($this->subColumns[0]);
     }
 }
