@@ -619,8 +619,9 @@ class QueryPlan
             }
             foreach ($aliasColumns as $aliasColumn) {
                 $aliasColumnName = $aliasColumn->getAlias()['name'];
-                $row[$aliasColumnName] = $row[$aliasColumn->getValue()];
-                unset($row[$aliasColumn->getValue()]);
+                $originColumnName = $aliasColumn->getValue();
+                $row[$aliasColumnName] = $row[$originColumnName];
+                unset($row[$originColumnName]);
             }
             if (!in_array('*', $columnNames)) {
                 foreach ($row as $k => $v) {
