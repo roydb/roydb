@@ -341,7 +341,6 @@ class QueryPlan
             }
 
             if (!$joined) {
-                //todo bugfix
                 $joinedResultSet[] = $leftRow + $emptyRightRow;
             }
         }
