@@ -609,25 +609,27 @@ class QueryPlan
                 }
             }
         }
-        if (!in_array('*', $columnNames)) {
-            foreach ($resultSet as $i => $row) {
-                foreach ($constColumns as $constColumn) {
-                    $constColumnAlias = $constColumn->getAlias();
-                    $constColumnAliasName = isset($constColumnAlias) ?
-                        $constColumnAlias['name'] :
-                        $constColumn->getValue();
-                    $row[$constColumnAliasName] = $constColumn->getValue();
-                }
-                foreach ($aliasColumns as $aliasColumn) {
-                    $row[$aliasColumn->getAlias()['name']] = $row[$aliasColumn->getValue()];
-                }
+        foreach ($resultSet as $i => $row) {
+            foreach ($constColumns as $constColumn) {
+                $constColumnAlias = $constColumn->getAlias();
+                $constColumnAliasName = isset($constColumnAlias) ?
+                    $constColumnAlias['name'] :
+                    $constColumn->getValue();
+                $row[$constColumnAliasName] = $constColumn->getValue();
+            }
+            foreach ($aliasColumns as $aliasColumn) {
+                $aliasColumnName = $aliasColumn->getAlias()['name'];
+                $row[$aliasColumnName] = $row[$aliasColumn->getValue()];
+                unset($row[$aliasColumn->getValue()]);
+            }
+            if (!in_array('*', $columnNames)) {
                 foreach ($row as $k => $v) {
                     if (!in_array($k, $columnNames)) {
                         unset($row[$k]);
                     }
                 }
-                $resultSet[$i] = $row;
             }
+            $resultSet[$i] = $row;
         }
 
         return $resultSet;
