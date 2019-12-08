@@ -64,8 +64,10 @@ class QueryPlan
         $columns = [];
         foreach ($selectExpr as $columnExpr) {
             $column = (new Column())->setType($columnExpr['expr_type'])
-                ->setAlias($columnExpr['alias'])
                 ->setValue($columnExpr['base_expr']);
+            if (isset($columnExpr['alias']) && $columnExpr['alias'] !== false) {
+                $column->setAlias($columnExpr['alias']);
+            }
             if ($columnExpr['sub_tree'] !== false) {
                 $column->setSubColumns($this->extractColumns($columnExpr['sub_tree']));
             }
@@ -497,21 +499,55 @@ class QueryPlan
         return $result;
     }
 
-    protected function executeUdf($udfName, Column $column, $row)
+    protected function getUdfColumnName(Column $column)
     {
-        $udf = null;
+        $udfParameters = [];
 
-        if (function_exists($udfName)) {
-            $udf = $udfName;
+        foreach ($column->getSubColumns() as $subColumn) {
+            if (!$subColumn->hasSubColumns()) {
+                $udfParameters[] = $subColumn->getValue();
+            } else {
+                $udfParameters[] = $this->getUdfColumnName($subColumn);
+            }
         }
 
-        if ($column->getType() === 'const') {
-            return call_user_func_array($udf, [$column->getValue()]);
-        } elseif ($column->getType() === 'colref') {
-            return call_user_func_array($udf, [$row[$column->getValue()]]);
+        return $column->getValue() . '(' . implode(',', $udfParameters) . ')';
+    }
+
+    protected function executeUdf($udfName, $parameters, $resultSet)
+    {
+        //todo fetch udf by udf name
+        $udf = [$this, 'sin'];
+
+        return call_user_func_array($udf, [$parameters, $resultSet]);
+    }
+
+    //todo move to udf
+    protected function sin($parameters, $resultSet)
+    {
+        return sin($parameters[0]);
+    }
+
+    protected function rowUdfFilter($udfName, $row, $resultSet, Column $column)
+    {
+        $udfParameters = [];
+        foreach ($column->getSubColumns() as $subColumn) {
+            if ($subColumn->hasSubColumns()) {
+                $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $subColumn);
+                $udfParameters[] = $filtered;
+            } else {
+                $subColumnValue = $subColumn->getValue();
+                if ($subColumn->getType() === 'colref') {
+                    if ($subColumnValue !== '*') {
+                        $udfParameters[] = $row[$subColumnValue];
+                    }
+                } else {
+                    $udfParameters[] = $subColumnValue;
+                }
+            }
         }
 
-        return $row;
+        return $this->executeUdf($udfName, $udfParameters, $resultSet);
     }
 
     /**
@@ -524,34 +560,18 @@ class QueryPlan
         $udfResultColumns = [];
 
         foreach ($columns as $column) {
-            if (in_array($column->getType(), ['aggregate_function', 'function'])) {
-                $udf = $column->getValue();
-                foreach ($column->getSubColumns() as $subColumn) {
-                    if ($subColumn->hasSubColumns()) {
-                        /** @var Column[] $childUdfResultColumns */
-                        $childUdfResultColumns = $this->resultSetUdfFilter($subColumn->getSubColumns(), $resultSet);
-                        foreach ($childUdfResultColumns as $childUdfResultColumn) {
-                            $udfResultColumnName = $udf . '(' . $childUdfResultColumn->getValue() . ')';
-                            $udfResultColumn = new Column();
-                            $udfResultColumn->setType('colref')
-                                ->setValue($udfResultColumnName)
-                                ->setAlias($column->getAlias());
-                            $udfResultColumns[] = $udfResultColumn;
-                            foreach ($resultSet as $i => $row) {
-                                $resultSet[$i][$udfResultColumnName] = $this->executeUdf($udf, $childUdfResultColumn, $row);
-                            }
-                        }
-                    } else {
-                        $udfResultColumnName = $udf . '(' . $subColumn->getValue() . ')';
-                        $udfResultColumn = new Column();
-                        $udfResultColumn->setType('colref')
-                            ->setValue($udfResultColumnName)
-                            ->setAlias($column->getAlias());
-                        $udfResultColumns[] = $udfResultColumn;
-                        foreach ($resultSet as $i => $row) {
-                            $resultSet[$i][$udfResultColumnName] = $this->executeUdf($udf, $subColumn, $row);
-                        }
-                    }
+            if ($column->isUdf()) {
+                $udfName = $column->getValue();
+                $udfResultColumnName = $this->getUdfColumnName($column);
+                $udfResultColumn = new Column();
+                $udfResultColumn->setType('colref')
+                    ->setValue($udfResultColumnName)
+                    ->setAlias($column->getAlias());
+                $udfResultColumns[] = $udfResultColumn;
+
+                foreach ($resultSet as $rowIndex => $row) {
+                    $row[$udfResultColumnName] = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
+                    $resultSet[$rowIndex] = $row;
                 }
             }
         }

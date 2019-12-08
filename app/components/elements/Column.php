@@ -61,6 +61,11 @@ class Column
         return $this->type;
     }
 
+    public function isUdf()
+    {
+        return in_array($this->getType(), ['aggregate_function', 'function']);
+    }
+
     /**
      * @return mixed
      */
