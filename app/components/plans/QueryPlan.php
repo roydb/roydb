@@ -16,7 +16,7 @@ use App\components\udf\Math;
 
 class QueryPlan
 {
-    const JOIN_TYPE_HANDLER_MAPPING = [
+    const JOIN_HANDLERS = [
         'JOIN' => 'innerJoinResultSet',
         'LEFT' => 'leftJoinResultSet',
         'RIGHT' => 'rightJoinResultSet',
@@ -230,7 +230,7 @@ class QueryPlan
 
     protected function joinResultSet($resultSet, $schema)
     {
-        $joinHandler = self::JOIN_TYPE_HANDLER_MAPPING[$schema['join_type']];
+        $joinHandler = self::JOIN_HANDLERS[$schema['join_type']];
         return $this->{$joinHandler}($resultSet, $schema);
     }
 
