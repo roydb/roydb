@@ -26,6 +26,7 @@ class QueryPlan
         'sin' => [Math::class, 'sin'],
         'cos' => [Math::class, 'cos'],
         'count' => [Aggregate::class, 'count'],
+        'max' => [Aggregate::class, 'max'],
     ];
 
     /** @var Ast */

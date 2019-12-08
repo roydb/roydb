@@ -19,13 +19,27 @@ class Aggregate
             if ($columnValue === '*') {
                 return count($resultSet);
             } else {
-                $count = 0;
-                foreach ($resultSet as $i => $row) {
-                    if (!is_null($row[$columnValue])) {
-                        ++$count;
-                    }
-                }
-                return $count;
+                return count(array_filter(array_column($resultSet, $columnValue), function ($value) {
+                    return !is_null($value);
+                }));
+            }
+        }
+    }
+
+    public static function max($parameters, $resultSet)
+    {
+        /** @var Column $column */
+        $column = $parameters[0];
+
+        $columnType = $column->getType();
+        $columnValue = $column->getValue();
+        if ($columnType === 'const') {
+            return $columnValue;
+        } else {
+            if ($columnValue === '*') {
+                return max(array_column($resultSet, 'id')); //todo fetch primary key from schema meta data
+            } else {
+                return max(array_column($resultSet, $columnValue));
             }
         }
     }
