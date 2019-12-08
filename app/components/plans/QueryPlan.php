@@ -3,6 +3,7 @@
 namespace App\components\plans;
 
 use App\components\Ast;
+use App\components\consts\UDF;
 use App\components\elements\Column;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
@@ -10,6 +11,8 @@ use App\components\elements\condition\Operand;
 use App\components\elements\Order;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
+use App\components\udf\Aggregate;
+use App\components\udf\Math;
 
 class QueryPlan
 {
@@ -17,6 +20,12 @@ class QueryPlan
         'JOIN' => 'innerJoinResultSet',
         'LEFT' => 'leftJoinResultSet',
         'RIGHT' => 'rightJoinResultSet',
+    ];
+
+    const UDF = [
+        'sin' => [Math::class, 'sin'],
+        'cos' => [Math::class, 'cos'],
+        'count' => [Aggregate::class, 'count'],
     ];
 
     /** @var Ast */
@@ -190,6 +199,10 @@ class QueryPlan
         }
     }
 
+    /**
+     * @return array|mixed
+     * @throws \Exception
+     */
     public function execute()
     {
         $resultSet = [];
@@ -514,35 +527,59 @@ class QueryPlan
         return $column->getValue() . '(' . implode(',', $udfParameters) . ')';
     }
 
+    /**
+     * @param $udfName
+     * @param $parameters
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     protected function executeUdf($udfName, $parameters, $resultSet)
     {
-        //todo fetch udf by udf name
-        $udf = [$this, 'sin'];
+        if (!array_key_exists($udfName, self::UDF)) {
+            throw new \Exception('Invalid udf name');
+        }
+
+        $udf = self::UDF[$udfName];
 
         return call_user_func_array($udf, [$parameters, $resultSet]);
     }
 
-    //todo move to udf
-    protected function sin($parameters, $resultSet)
-    {
-        return sin($parameters[0]);
-    }
-
+    /**
+     * @param $udfName
+     * @param $row
+     * @param $resultSet
+     * @param Column $column
+     * @return mixed
+     * @throws \Exception
+     */
     protected function rowUdfFilter($udfName, $row, $resultSet, Column $column)
     {
         $udfParameters = [];
         foreach ($column->getSubColumns() as $subColumn) {
             if ($subColumn->hasSubColumns()) {
                 $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $subColumn);
-                $udfParameters[] = $filtered;
+                $udfParameters[] = (new Column())->setValue($filtered)
+                    ->setType('const');
             } else {
                 $subColumnValue = $subColumn->getValue();
-                if ($subColumn->getType() === 'colref') {
-                    if ($subColumnValue !== '*') {
-                        $udfParameters[] = $row[$subColumnValue];
+                $subColumnType = $subColumn->getType();
+                if ($subColumnType === 'colref') {
+                    if (in_array($udfName, UDF::AGGREGATE_UDF)) {
+                        $udfParameters[] = (new Column())->setValue($subColumnValue)
+                            ->setType('colref');
+                    } else {
+                        if ($subColumnValue !== '*') {
+                            $udfParameters[] = (new Column())->setValue($row[$subColumnValue])
+                                ->setType('const');
+                        } else {
+                            $udfParameters[] = (new Column())->setValue('*')
+                                ->setType('colref');
+                        }
                     }
                 } else {
-                    $udfParameters[] = $subColumnValue;
+                    $udfParameters[] = (new Column())->setValue($subColumnValue)
+                        ->setType($subColumnType);
                 }
             }
         }
@@ -554,6 +591,7 @@ class QueryPlan
      * @param Column[] $columns
      * @param $resultSet
      * @return array
+     * @throws \Exception
      */
     protected function resultSetUdfFilter($columns, &$resultSet)
     {
