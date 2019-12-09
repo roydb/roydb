@@ -8,6 +8,7 @@ use App\components\elements\Column;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
+use App\components\elements\Group;
 use App\components\elements\Order;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
@@ -25,8 +26,11 @@ class QueryPlan
     const UDF = [
         'sin' => [Math::class, 'sin'],
         'cos' => [Math::class, 'cos'],
+        'sqrt' => [Math::class, 'sqrt'],
+        'pow' => [Math::class, 'pow'],
         'count' => [Aggregate::class, 'count'],
         'max' => [Aggregate::class, 'max'],
+        'min' => [Aggregate::class, 'min'],
     ];
 
     /** @var Ast */
@@ -43,6 +47,8 @@ class QueryPlan
     /** @var Condition|ConditionTree|null  */
     protected $condition;
 
+    protected $groups;
+
     /** @var Order[] */
     protected $orders;
 
@@ -57,6 +63,7 @@ class QueryPlan
         $this->columns = $this->extractColumns($ast->getStmt()['SELECT']);
         $this->extractSchemas();
         $this->condition = $this->extractWhereConditions();
+        $this->extractGroups();
         $this->extractOrders();
     }
 
@@ -182,6 +189,20 @@ class QueryPlan
             return $conditionTree;
         } else {
             return $condition;
+        }
+    }
+
+    protected function extractGroups()
+    {
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['GROUP'])) {
+            return;
+        }
+        $groups = $this->ast->getStmt()['GROUP'];
+        $this->groups = [];
+        foreach ($groups as $group) {
+            $this->groups[] = (new Group())->setType($group['expr_type'])
+                ->setValue($group['base_expr']);
         }
     }
 
@@ -511,6 +532,15 @@ class QueryPlan
         }
 
         return $result;
+    }
+
+    protected function resultSetGroupFilter($resultSet)
+    {
+        //todo
+
+        if (is_null($this->orders)) {
+            return $resultSet;
+        }
     }
 
     protected function getUdfColumnName(Column $column)

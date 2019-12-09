@@ -43,4 +43,22 @@ class Aggregate
             }
         }
     }
+
+    public static function min($parameters, $resultSet)
+    {
+        /** @var Column $column */
+        $column = $parameters[0];
+
+        $columnType = $column->getType();
+        $columnValue = $column->getValue();
+        if ($columnType === 'const') {
+            return $columnValue;
+        } else {
+            if ($columnValue === '*') {
+                return min(array_column($resultSet, 'id')); //todo fetch primary key from schema meta data
+            } else {
+                return min(array_column($resultSet, $columnValue));
+            }
+        }
+    }
 }
