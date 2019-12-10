@@ -2,25 +2,85 @@
 
 namespace App\components\udf;
 
+use App\components\elements\Aggregation;
+use App\components\elements\Column;
+
 class Math
 {
-    public static function sin($parameters, $resultSet)
+    public static function sin($parameters, $row, $resultSet)
     {
-        return sin($parameters[0]);
+        /** @var Column $column */
+        $column = $parameters[0];
+        if ($column->getType() === 'const') {
+            return sin($column->getValue());
+        } else {
+            if ($row instanceof Aggregation) {
+                $degree = $row->getFirstItem()[$column->getValue()];
+            } else {
+                $degree = $row[$column->getValue()];
+            }
+            return sin($degree);
+        }
     }
 
-    public static function cos($parameters, $resultSet)
+    public static function cos($parameters, $row, $resultSet)
     {
-        return cos($parameters[0]);
+        /** @var Column $column */
+        $column = $parameters[0];
+        if ($column->getType() === 'const') {
+            return cos($column->getValue());
+        } else {
+            if ($row instanceof Aggregation) {
+                $degree = $row->getFirstItem()[$column->getValue()];
+            } else {
+                $degree = $row[$column->getValue()];
+            }
+            return cos($degree);
+        }
     }
 
-    public static function sqrt($parameters, $resultSet)
+    public static function sqrt($parameters, $row, $resultSet)
     {
-        return sqrt($parameters[0]);
+        /** @var Column $column */
+        $column = $parameters[0];
+        if ($column->getType() === 'const') {
+            return sqrt($column->getValue());
+        } else {
+            if ($row instanceof Aggregation) {
+                $number = $row->getFirstItem()[$column->getValue()];
+            } else {
+                $number = $row[$column->getValue()];
+            }
+            return sqrt($number);
+        }
     }
 
-    public static function pow($parameters, $resultSet)
+    public static function pow($parameters, $row, $resultSet)
     {
-        return pow($parameters[0], $parameters[1]);
+        /** @var Column $baseColumn */
+        $baseColumn = $parameters[0];
+        if ($baseColumn->getType() === 'const') {
+            $base = $baseColumn->getValue();
+        } else {
+            if ($row instanceof Aggregation) {
+                $base = $row->getFirstItem()[$baseColumn->getValue()];
+            } else {
+                $base = $row[$baseColumn->getValue()];
+            }
+        }
+
+        /** @var Column $expColumn */
+        $expColumn = $parameters[1];
+        if ($expColumn->getType() === 'const') {
+            $exp = $expColumn->getValue();
+        } else {
+            if ($row instanceof Aggregation) {
+                $exp = $row->getFirstItem()[$expColumn->getValue()];
+            } else {
+                $exp = $row[$expColumn->getValue()];
+            }
+        }
+
+        return pow($base, $exp);
     }
 }

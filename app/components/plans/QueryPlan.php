@@ -4,6 +4,7 @@ namespace App\components\plans;
 
 use App\components\Ast;
 use App\components\consts\UDF;
+use App\components\elements\Aggregation;
 use App\components\elements\Column;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
@@ -31,6 +32,7 @@ class QueryPlan
         'count' => [Aggregate::class, 'count'],
         'max' => [Aggregate::class, 'max'],
         'min' => [Aggregate::class, 'min'],
+        'first' => [Aggregate::class, 'first'],
     ];
 
     /** @var Ast */
@@ -47,6 +49,7 @@ class QueryPlan
     /** @var Condition|ConditionTree|null  */
     protected $condition;
 
+    /** @var Group[] */
     protected $groups;
 
     /** @var Order[] */
@@ -240,6 +243,7 @@ class QueryPlan
             }
         }
 
+        $resultSet = $this->resultSetGroupFilter($resultSet);
         $columns = array_merge(
             $this->columns,
             $this->resultSetUdfFilter($this->columns, $resultSet)
@@ -534,13 +538,67 @@ class QueryPlan
         return $result;
     }
 
+    protected function aggregatedArrayToObject($aggregated, $oldDimension = [])
+    {
+        $aggregation = [];
+        foreach ($aggregated as $dimension => $items) {
+            $newAggregation = new Aggregation();
+            $newAggregation->setDimension($oldDimension);
+            $newAggregation->addDimension($dimension);
+            $newAggregation->setItems($items);
+            $aggregation[] = $newAggregation;
+        }
+
+        return $aggregation;
+    }
+
     protected function resultSetGroupFilter($resultSet)
     {
-        //todo
-
-        if (is_null($this->orders)) {
+        if (is_null($this->groups)) {
             return $resultSet;
         }
+
+        foreach ($this->groups as $group) {
+            $aggregated = [];
+            foreach ($resultSet as $i => $row) {
+                if ($row instanceof Aggregation) {
+                    $aggregated = [];
+
+                    foreach ($row->getItems() as $index => $item) {
+                        $aggregateField = $group->getValue();
+                        if ($group->getType() === 'colref') {
+                            $dimension = $item[$aggregateField];
+                        } else {
+                            $dimension = $aggregateField;
+                        }
+                        $aggregated[$dimension][] = $item;
+                    }
+
+                    foreach ($this->aggregatedArrayToObject($aggregated, $row->getDimension()) as $aggregation) {
+                        $resultSet[] = $aggregation;
+                    }
+
+                    unset($resultSet[$i]);
+
+                    $aggregated = [];
+                } else {
+                    $aggregateField = $group->getValue();
+                    if ($group->getType() === 'colref') {
+                        $dimension = $row[$aggregateField];
+                    } else {
+                        $dimension = $aggregateField;
+                    }
+
+                    $aggregated[$dimension][] = $row;
+                }
+            }
+
+            if (count($aggregated) > 0) {
+                $resultSet = $this->aggregatedArrayToObject($aggregated);
+            }
+        }
+
+        return array_values($resultSet);
     }
 
     protected function getUdfColumnName(Column $column)
@@ -561,11 +619,12 @@ class QueryPlan
     /**
      * @param $udfName
      * @param $parameters
+     * @param $row
      * @param $resultSet
      * @return mixed
      * @throws \Exception
      */
-    protected function executeUdf($udfName, $parameters, $resultSet)
+    protected function executeUdf($udfName, $parameters, $row, $resultSet)
     {
         if (!array_key_exists($udfName, self::UDF)) {
             throw new \Exception('Invalid udf name');
@@ -573,7 +632,7 @@ class QueryPlan
 
         $udf = self::UDF[$udfName];
 
-        return call_user_func_array($udf, [$parameters, $resultSet]);
+        return call_user_func_array($udf, [$parameters, $row, $resultSet]);
     }
 
     /**
@@ -601,8 +660,13 @@ class QueryPlan
                             ->setType('colref');
                     } else {
                         if ($subColumnValue !== '*') {
-                            $udfParameters[] = (new Column())->setValue($row[$subColumnValue])
-                                ->setType('const');
+                            if ($row instanceof Aggregation) {
+                                $udfParameters[] = (new Column())->setValue($subColumnValue)
+                                    ->setType('colref');
+                            } else {
+                                $udfParameters[] = (new Column())->setValue($row[$subColumnValue])
+                                    ->setType('const');
+                            }
                         } else {
                             $udfParameters[] = (new Column())->setValue('*')
                                 ->setType('colref');
@@ -615,7 +679,7 @@ class QueryPlan
             }
         }
 
-        return $this->executeUdf($udfName, $udfParameters, $resultSet);
+        return $this->executeUdf($udfName, $udfParameters, $row, $resultSet);
     }
 
     /**
@@ -628,7 +692,21 @@ class QueryPlan
     {
         $udfResultColumns = [];
 
-        foreach ($columns as $column) {
+        foreach ($columns as $columnIndex => $column) {
+            foreach ($resultSet as $rowIndex => $row) {
+                if ($row instanceof Aggregation) {
+                    if (!$column->isUdf()) {
+                        $firstUdfColumn = new Column();
+                        $firstUdfColumn->setType('aggregate_function')
+                            ->setValue('first')
+                            ->setAlias($column->getAlias())
+                            ->setSubColumns([$firstUdfColumn]);
+                        $column = $firstUdfColumn;
+                        $columns[$columnIndex] = $column;
+                    }
+                }
+                break;
+            }
             if ($column->isUdf()) {
                 $udfName = $column->getValue();
                 $udfResultColumnName = $this->getUdfColumnName($column);
@@ -639,9 +717,20 @@ class QueryPlan
                 $udfResultColumns[] = $udfResultColumn;
 
                 foreach ($resultSet as $rowIndex => $row) {
-                    $row[$udfResultColumnName] = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
-                    $resultSet[$rowIndex] = $row;
+                    $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
+                    if ($row instanceof Aggregation) {
+                        $row->setOneAggregatedResult($udfResultColumnName, $filtered);
+                    } else {
+                        $row[$udfResultColumnName] = $filtered;
+                        $resultSet[$rowIndex] = $row;
+                    }
                 }
+            }
+        }
+
+        foreach ($resultSet as $rowIndex => $row) {
+            if ($row instanceof Aggregation) {
+                $resultSet[$rowIndex] = $row->getAggregatedResult();
             }
         }
 

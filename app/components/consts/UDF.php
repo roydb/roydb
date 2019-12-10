@@ -5,6 +5,6 @@ namespace App\components\consts;
 class UDF
 {
     const AGGREGATE_UDF = [
-        'count', 'max',
+        'count', 'max', 'min', 'first',
     ];
 }

@@ -6,7 +6,7 @@ use App\components\elements\Column;
 
 class Aggregate
 {
-    public static function count($parameters, $resultSet)
+    public static function count($parameters, $row, $resultSet)
     {
         /** @var Column $column */
         $column = $parameters[0];
@@ -26,7 +26,7 @@ class Aggregate
         }
     }
 
-    public static function max($parameters, $resultSet)
+    public static function max($parameters, $row, $resultSet)
     {
         /** @var Column $column */
         $column = $parameters[0];
@@ -44,7 +44,7 @@ class Aggregate
         }
     }
 
-    public static function min($parameters, $resultSet)
+    public static function min($parameters, $row, $resultSet)
     {
         /** @var Column $column */
         $column = $parameters[0];
@@ -60,5 +60,10 @@ class Aggregate
                 return min(array_column($resultSet, $columnValue));
             }
         }
+    }
+
+    public static function first($parameters, $row, $resultSet)
+    {
+
     }
 }
