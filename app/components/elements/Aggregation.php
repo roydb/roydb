@@ -6,9 +6,9 @@ class Aggregation
 {
     protected $dimension = [];
 
-    protected $items = [];
+    protected $rows = [];
 
-    protected $aggregatedResult = [];
+    protected $aggregatedRow = [];
 
     /**
      * @param array $dimension
@@ -31,21 +31,21 @@ class Aggregation
     }
 
     /**
-     * @param array $items
+     * @param array $rows
      * @return $this
      */
-    public function setItems(array $items): self
+    public function setRows(array $rows): self
     {
-        $this->items = $items;
+        $this->rows = $rows;
         return $this;
     }
 
     /**
-     * @param array $aggregatedResult
+     * @param array $aggregatedRow
      */
-    public function setAggregatedResult(array $aggregatedResult): void
+    public function setAggregatedRow(array $aggregatedRow): void
     {
-        $this->aggregatedResult = $aggregatedResult;
+        $this->aggregatedRow = $aggregatedRow;
     }
 
     /**
@@ -53,9 +53,9 @@ class Aggregation
      * @param $value
      * @return $this
      */
-    public function setOneAggregatedResult($key, $value): self
+    public function setOneAggregatedRow($key, $value): self
     {
-        $this->aggregatedResult[$key] = $value;
+        $this->aggregatedRow[$key] = $value;
         return $this;
     }
 
@@ -70,24 +70,24 @@ class Aggregation
     /**
      * @return array
      */
-    public function getItems(): array
+    public function getRows(): array
     {
-        return $this->items;
+        return $this->rows;
     }
 
     /**
      * @return mixed
      */
-    public function getFirstItem()
+    public function getFirstRow()
     {
-        return $this->items[0];
+        return $this->rows[0];
     }
 
     /**
      * @return array
      */
-    public function getAggregatedResult(): array
+    public function getAggregatedRow(): array
     {
-        return $this->aggregatedResult;
+        return $this->aggregatedRow;
     }
 }

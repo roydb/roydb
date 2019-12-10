@@ -541,11 +541,11 @@ class QueryPlan
     protected function aggregatedArrayToObject($aggregated, $oldDimension = [])
     {
         $aggregation = [];
-        foreach ($aggregated as $dimension => $items) {
+        foreach ($aggregated as $dimension => $rows) {
             $newAggregation = new Aggregation();
             $newAggregation->setDimension($oldDimension);
             $newAggregation->addDimension($dimension);
-            $newAggregation->setItems($items);
+            $newAggregation->setRows($rows);
             $aggregation[] = $newAggregation;
         }
 
@@ -560,25 +560,25 @@ class QueryPlan
 
         foreach ($this->groups as $group) {
             $aggregated = [];
-            foreach ($resultSet as $i => $row) {
+            foreach ($resultSet as $rowIndex => $row) {
                 if ($row instanceof Aggregation) {
                     $aggregated = [];
 
-                    foreach ($row->getItems() as $index => $item) {
+                    foreach ($row->getRows() as $aggRowIndex => $aggRow) {
                         $aggregateField = $group->getValue();
                         if ($group->getType() === 'colref') {
-                            $dimension = $item[$aggregateField];
+                            $dimension = $aggRow[$aggregateField];
                         } else {
                             $dimension = $aggregateField;
                         }
-                        $aggregated[$dimension][] = $item;
+                        $aggregated[$dimension][] = $aggRow;
                     }
 
                     foreach ($this->aggregatedArrayToObject($aggregated, $row->getDimension()) as $aggregation) {
                         $resultSet[] = $aggregation;
                     }
 
-                    unset($resultSet[$i]);
+                    unset($resultSet[$rowIndex]);
 
                     $aggregated = [];
                 } else {
@@ -699,8 +699,8 @@ class QueryPlan
                         $firstUdfColumn = new Column();
                         $firstUdfColumn->setType('aggregate_function')
                             ->setValue('first')
-                            ->setAlias($column->getAlias())
-                            ->setSubColumns([$firstUdfColumn]);
+                            ->setAlias($column->getAlias() ?? ['name' => $column->getValue()])
+                            ->setSubColumns([$column]);
                         $column = $firstUdfColumn;
                         $columns[$columnIndex] = $column;
                     }
@@ -719,7 +719,7 @@ class QueryPlan
                 foreach ($resultSet as $rowIndex => $row) {
                     $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
                     if ($row instanceof Aggregation) {
-                        $row->setOneAggregatedResult($udfResultColumnName, $filtered);
+                        $row->setOneAggregatedRow($udfResultColumnName, $filtered);
                     } else {
                         $row[$udfResultColumnName] = $filtered;
                         $resultSet[$rowIndex] = $row;
@@ -730,7 +730,7 @@ class QueryPlan
 
         foreach ($resultSet as $rowIndex => $row) {
             if ($row instanceof Aggregation) {
-                $resultSet[$rowIndex] = $row->getAggregatedResult();
+                $resultSet[$rowIndex] = $row->getAggregatedRow();
             }
         }
 

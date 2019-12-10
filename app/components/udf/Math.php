@@ -15,7 +15,7 @@ class Math
             return sin($column->getValue());
         } else {
             if ($row instanceof Aggregation) {
-                $degree = $row->getFirstItem()[$column->getValue()];
+                $degree = $row->getFirstRow()[$column->getValue()];
             } else {
                 $degree = $row[$column->getValue()];
             }
@@ -31,7 +31,7 @@ class Math
             return cos($column->getValue());
         } else {
             if ($row instanceof Aggregation) {
-                $degree = $row->getFirstItem()[$column->getValue()];
+                $degree = $row->getFirstRow()[$column->getValue()];
             } else {
                 $degree = $row[$column->getValue()];
             }
@@ -47,7 +47,7 @@ class Math
             return sqrt($column->getValue());
         } else {
             if ($row instanceof Aggregation) {
-                $number = $row->getFirstItem()[$column->getValue()];
+                $number = $row->getFirstRow()[$column->getValue()];
             } else {
                 $number = $row[$column->getValue()];
             }
@@ -63,7 +63,7 @@ class Math
             $base = $baseColumn->getValue();
         } else {
             if ($row instanceof Aggregation) {
-                $base = $row->getFirstItem()[$baseColumn->getValue()];
+                $base = $row->getFirstRow()[$baseColumn->getValue()];
             } else {
                 $base = $row[$baseColumn->getValue()];
             }
@@ -75,7 +75,7 @@ class Math
             $exp = $expColumn->getValue();
         } else {
             if ($row instanceof Aggregation) {
-                $exp = $row->getFirstItem()[$expColumn->getValue()];
+                $exp = $row->getFirstRow()[$expColumn->getValue()];
             } else {
                 $exp = $row[$expColumn->getValue()];
             }
