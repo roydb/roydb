@@ -99,8 +99,10 @@ class QueryPlan
 
     protected function extractSchemas()
     {
-        $from = $this->ast->getStmt()['FROM'];
-        $this->schemas = $from;
+        $stmt = $this->ast->getStmt();
+        if (isset($stmt['FROM'])) {
+            $this->schemas = $stmt['FROM'];
+        }
     }
 
     protected function extractConditions($conditionExpr)
@@ -232,22 +234,23 @@ class QueryPlan
     {
         $resultSet = [];
 
-        foreach ($this->schemas as $i => $schema) {
-            if ($i > 0) {
-                $resultSet = $this->joinResultSet($resultSet, $schema);
-            } else {
-                $resultSet = $this->storage->get(
-                    $schema['table'],
-                    $this->extractWhereConditions()
-                );
+        if (!is_null($this->schemas)) {
+            foreach ($this->schemas as $i => $schema) {
+                if ($i > 0) {
+                    $resultSet = $this->joinResultSet($resultSet, $schema);
+                } else {
+                    $resultSet = $this->storage->get(
+                        $schema['table'],
+                        $this->extractWhereConditions()
+                    );
+                }
             }
+        } else {
+            $resultSet[] = [];
         }
 
         $resultSet = $this->resultSetGroupFilter($resultSet);
-        $columns = array_merge(
-            $this->columns,
-            $this->resultSetUdfFilter($this->columns, $resultSet)
-        );
+        list($columns, $resultSet) = $this->resultSetUdfFilter($this->columns, $resultSet);
         $resultSet = $this->resultSetOrder($resultSet);
         $resultSet = $this->resultSetColumnsFilter($columns, $resultSet);
 
@@ -688,7 +691,7 @@ class QueryPlan
      * @return array
      * @throws \Exception
      */
-    protected function resultSetUdfFilter($columns, &$resultSet)
+    protected function resultSetUdfFilter($columns, $resultSet)
     {
         $udfResultColumns = [];
 
@@ -719,6 +722,24 @@ class QueryPlan
                 foreach ($resultSet as $rowIndex => $row) {
                     $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
                     if (is_array($filtered)) {
+                        $existedColumnNames = [];
+                        foreach ($columns as $existedColumnIndex => $existedColumn) {
+                            if (!$existedColumn->hasSubColumns()) {
+                                $existedColumnNames[] = $existedColumn->getValue();
+                            }
+                        }
+                        foreach ($udfResultColumns as $existedUdfColumnIndex => $existedUdfColumn) {
+                            if (!$existedUdfColumn->hasSubColumns()) {
+                                $existedColumnNames[] = $existedUdfColumn->getValue();
+                            }
+                        }
+                        foreach ($filtered as $filteredKey => $filteredValue) {
+                            if (!in_array($filteredKey, $existedColumnNames)) {
+                                $columns[] = (new Column())->setValue($filteredKey)
+                                    ->setType('colref');
+                            }
+                        }
+
                         if ($row instanceof Aggregation) {
                             $row->mergeAggregatedRow($filtered);
                         } else {
@@ -748,7 +769,7 @@ class QueryPlan
             }
         }
 
-        return $udfResultColumns;
+        return [array_merge($columns, $udfResultColumns), $resultSet];
     }
 
     protected function resultSetOrder($resultSet)
@@ -802,11 +823,8 @@ class QueryPlan
         }
         foreach ($resultSet as $i => $row) {
             foreach ($constColumns as $constColumn) {
-                $constColumnAlias = $constColumn->getAlias();
-                $constColumnAliasName = isset($constColumnAlias) ?
-                    $constColumnAlias['name'] :
-                    $constColumn->getValue();
-                $row[$constColumnAliasName] = $constColumn->getValue();
+                $constColumnValue = $constColumn->getValue();
+                $row[$constColumnValue] = $constColumnValue;
             }
             foreach ($aliasColumns as $aliasColumn) {
                 $aliasColumnName = $aliasColumn->getAlias()['name'];
