@@ -707,6 +707,7 @@ class QueryPlan
                 }
                 break;
             }
+
             if ($column->isUdf()) {
                 $udfName = $column->getValue();
                 $udfResultColumnName = $this->getUdfColumnName($column);
@@ -714,16 +715,29 @@ class QueryPlan
                 $udfResultColumn->setType('colref')
                     ->setValue($udfResultColumnName)
                     ->setAlias($column->getAlias());
-                $udfResultColumns[] = $udfResultColumn;
 
                 foreach ($resultSet as $rowIndex => $row) {
                     $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
-                    if ($row instanceof Aggregation) {
-                        $row->setOneAggregatedRow($udfResultColumnName, $filtered);
+                    if (is_array($filtered)) {
+                        if ($row instanceof Aggregation) {
+                            $row->mergeAggregatedRow($filtered);
+                        } else {
+                            $row = array_merge($row, $filtered);
+                            $resultSet[$rowIndex] = $row;
+                        }
+                        $udfResultColumn = null;
                     } else {
-                        $row[$udfResultColumnName] = $filtered;
-                        $resultSet[$rowIndex] = $row;
+                        if ($row instanceof Aggregation) {
+                            $row->setOneAggregatedRow($udfResultColumnName, $filtered);
+                        } else {
+                            $row[$udfResultColumnName] = $filtered;
+                            $resultSet[$rowIndex] = $row;
+                        }
                     }
+                }
+
+                if (!is_null($udfResultColumn)) {
+                    $udfResultColumns[] = $udfResultColumn;
                 }
             }
         }

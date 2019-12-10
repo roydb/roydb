@@ -42,10 +42,6 @@ class Aggregate
         if ($columnType === 'const') {
             return $columnValue;
         } else {
-            if ($columnValue === '*') {
-                $columnValue = 'id'; //todo fetch primary key from schema meta data
-            }
-
             if ($row instanceof Aggregation) {
                 return max(array_column($row->getRows(), $columnValue));
             } else {
@@ -64,10 +60,6 @@ class Aggregate
         if ($columnType === 'const') {
             return $columnValue;
         } else {
-            if ($columnValue === '*') {
-                $columnValue = 'id'; //todo fetch primary key from schema meta data
-            }
-
             if ($row instanceof Aggregation) {
                 return min(array_column($row->getRows(), $columnValue));
             } else {
@@ -87,7 +79,11 @@ class Aggregate
             return $columnValue;
         } else {
             if ($columnValue === '*') {
-                $columnValue = 'id'; //todo fetch primary key from schema meta data
+                if ($row instanceof Aggregation) {
+                    return $row->getFirstRow();
+                } else {
+                    return $resultSet[0];
+                }
             }
             if ($row instanceof Aggregation) {
                 return $row->getFirstRow()[$columnValue];

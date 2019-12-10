@@ -42,10 +42,22 @@ class Aggregation
 
     /**
      * @param array $aggregatedRow
+     * @return $this
      */
-    public function setAggregatedRow(array $aggregatedRow): void
+    public function setAggregatedRow(array $aggregatedRow): self
     {
         $this->aggregatedRow = $aggregatedRow;
+        return $this;
+    }
+
+    /**
+     * @param array $aggregatedRow
+     * @return $this
+     */
+    public function mergeAggregatedRow(array $aggregatedRow): self
+    {
+        $this->aggregatedRow = array_merge($this->aggregatedRow, $aggregatedRow);
+        return $this;
     }
 
     /**
