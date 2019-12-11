@@ -81,6 +81,7 @@ class LevelDB extends AbstractStorage
 
     protected function fetchAllPrimaryIndexData($schema)
     {
+        //todo optimize for storage get limit
         $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
