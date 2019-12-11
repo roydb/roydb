@@ -55,6 +55,8 @@ class QueryPlan
     /** @var Order[] */
     protected $orders;
 
+    protected $limit;
+
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
@@ -68,6 +70,7 @@ class QueryPlan
         $this->condition = $this->extractWhereConditions();
         $this->extractGroups();
         $this->extractOrders();
+        $this->extractLimit();
     }
 
     protected function extractWhereConditions()
@@ -226,6 +229,16 @@ class QueryPlan
         }
     }
 
+    protected function extractLimit()
+    {
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['LIMIT'])) {
+            return;
+        }
+
+        $this->limit = $stmt['LIMIT'];
+    }
+
     /**
      * @return array|mixed
      * @throws \Exception
@@ -253,6 +266,7 @@ class QueryPlan
         list($columns, $resultSet) = $this->resultSetUdfFilter($this->columns, $resultSet);
         $resultSet = $this->resultSetOrder($resultSet);
         $resultSet = $this->resultSetColumnsFilter($columns, $resultSet);
+        $resultSet = $this->resultSetLimit($resultSet);
 
         return $resultSet;
     }
@@ -840,6 +854,17 @@ class QueryPlan
                 }
             }
             $resultSet[$i] = $row;
+        }
+
+        return $resultSet;
+    }
+
+    protected function resultSetLimit($resultSet)
+    {
+        if (!is_null($this->limit)) {
+            $offset = ($this->limit['offset'] === '') ? 0 : ($this->limit['offset']);
+            $limit = $this->limit['rowcount'];
+            return array_slice($resultSet, $offset, $limit);
         }
 
         return $resultSet;
