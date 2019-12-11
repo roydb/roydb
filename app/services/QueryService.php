@@ -57,6 +57,10 @@ class QueryService extends BaseService
 //        $primaryIdx->set(2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
 //        $fieldIdx->set('zoo', json_encode([['id' => 3]]));
 //        $primaryIdx->set(3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
+//        $fieldIdx->set('doo', json_encode([['id' => 5]]));
+//        $primaryIdx->set(5, json_encode(['id' => 5, 'type' => 1, 'name' => 'doo']));
+//        $fieldIdx->set('boo', json_encode([['id' => 4]]));
+//        $primaryIdx->set(4, json_encode(['id' => 4, 'type' => 1, 'name' => 'boo']));
 //        var_dump($fieldIdx->get('foo'));
 //        var_dump($fieldIdx->get('haha'));
 //        $primaryIdx = $this->openBtree('test1', true);
@@ -67,6 +71,10 @@ class QueryService extends BaseService
 //        $primaryIdx->set(2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
 //        $fieldIdx->set('zoo', json_encode([['id' => 3]]));
 //        $primaryIdx->set(3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
+//        $fieldIdx->set('doo', json_encode([['id' => 5]]));
+//        $primaryIdx->set(5, json_encode(['id' => 5, 'type' => 1, 'name' => 'doo']));
+//        $fieldIdx->set('boo', json_encode([['id' => 4]]));
+//        $primaryIdx->set(4, json_encode(['id' => 4, 'type' => 1, 'name' => 'boo']));
 //        var_dump($fieldIdx->get('foo'));
 //        var_dump($fieldIdx->get('haha'));
 //        return [

@@ -204,40 +204,10 @@ class LevelDB extends AbstractStorage
                 return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
-            $matched = false;
-            $prevIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue2) === false) {
-                $prevIt->last();
-            } else {
-                $prevIt->seek($operandValue2);
-                $matched = true;
-            }
-            for (; $prevIt->valid(); $prevIt->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$prevIt->key(), $operandValue2])) {
-                    $indexData = array_merge($indexData, json_decode($prevIt->current(), true));
-                    $matched = true;
-                } else {
-                    if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            $matched = false;
             $nextIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue2) !== false) {
-                $nextIt->seek($operandValue2);
-                $matched = true;
-            } else {
-                $nextIt->rewind();
-            }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
                     $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
-                    $matched = true;
-                } else {
-                    if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
                 }
             }
             return $indexData;
@@ -247,43 +217,12 @@ class LevelDB extends AbstractStorage
                 return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
-            $matched = false;
-            $prevIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue1) === false) {
-                $prevIt->last();
-            } else {
-                $prevIt->seek($operandValue1);
-                $matched = true;
-            }
-            for (; $prevIt->valid(); $prevIt->prev()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $prevIt->key()])) {
-                    $indexData = array_merge(json_decode($prevIt->current(), true));
-                    $matched = true;
-                } else {
-                    if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
-                }
-            }
-            $matched = false;
             $nextIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue1) !== false) {
-                $nextIt->seek($operandValue1);
-                $matched = true;
-            } else {
-                $nextIt->rewind();
-            }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));
-                    $matched = true;
-                } else {
-                    if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
                 }
             }
-            //todo optimizen 范围类型、等于类型、或者其他可能类型的查询，不满足条件时终止
             return $indexData;
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
@@ -341,25 +280,13 @@ class LevelDB extends AbstractStorage
                 return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
-            $matched = false;
             $nextIt = new \LevelDBIterator($index);
-            if ($index->get($operandValue2) !== false) {
-                $nextIt->seek($operandValue2);
-                $matched = true;
-            } else {
-                $nextIt->rewind();
-            }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr(
                     $conditionOperator,
                     ...[$nextIt->key(), $operandValue2, $operandValue3]
                 )) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));
-                    $matched = true;
-                } else {
-                    if ($matched && in_array($conditionOperator, Operator::RANGE_OPERATORS)) {
-                        break;
-                    }
                 }
             }
             return $indexData;
