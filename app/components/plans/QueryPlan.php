@@ -42,7 +42,7 @@ class QueryPlan
     protected $storage;
 
     /** @var Column[] */
-    protected $columns;
+    protected $columns = [];
 
     protected $schemas;
 
@@ -868,5 +868,149 @@ class QueryPlan
         }
 
         return $resultSet;
+    }
+
+    /**
+     * @return Ast
+     */
+    public function getAst(): Ast
+    {
+        return $this->ast;
+    }
+
+    /**
+     * @return AbstractStorage
+     */
+    public function getStorage(): AbstractStorage
+    {
+        return $this->storage;
+    }
+
+    /**
+     * @return Column[]
+     */
+    public function getColumns(): array
+    {
+        return $this->columns;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getSchemas()
+    {
+        return $this->schemas;
+    }
+
+    /**
+     * @return Condition|ConditionTree|null
+     */
+    public function getCondition()
+    {
+        return $this->condition;
+    }
+
+    /**
+     * @return Group[]
+     */
+    public function getGroups(): ?array
+    {
+        return $this->groups;
+    }
+
+    /**
+     * @return Order[]
+     */
+    public function getOrders(): ?array
+    {
+        return $this->orders;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getLimit()
+    {
+        return $this->limit;
+    }
+
+    /**
+     * @param Ast $ast
+     * @return $this
+     */
+    public function setAst(Ast $ast): self
+    {
+        $this->ast = $ast;
+        return $this;
+    }
+
+    /**
+     * @param AbstractStorage $storage
+     * @return $this
+     */
+    public function setStorage(AbstractStorage $storage): self
+    {
+        $this->storage = $storage;
+        return $this;
+    }
+
+    /**
+     * @param array $columns
+     * @return $this
+     */
+    public function setColumns(array $columns): self
+    {
+        $this->columns = $columns;
+        return $this;
+    }
+
+    /**
+     * @param $schemas
+     * @return $this
+     */
+    public function setSchemas($schemas): self
+    {
+        $this->schemas = $schemas;
+        return $this;
+    }
+
+    /**
+     * @param $condition
+     * @return $this
+     */
+    public function setCondition($condition): self
+    {
+        $this->condition = $condition;
+        return $this;
+    }
+
+    /**
+     * @param array|null $groups
+     * @return $this
+     */
+    public function setGroups(?array $groups): self
+    {
+        $this->groups = $groups;
+        return $this;
+    }
+
+    /**
+     * @param array|null $orders
+     * @return $this
+     */
+    public function setOrders(?array $orders): self
+    {
+        $this->orders = $orders;
+        return $this;
+    }
+
+    /**
+     * @param $limit
+     * @return $this
+     */
+    public function setLimit($limit): self
+    {
+        $this->limit = $limit;
+        return $this;
     }
 }
