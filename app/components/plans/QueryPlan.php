@@ -57,6 +57,9 @@ class QueryPlan
 
     protected $limit;
 
+    //Optimization properties
+    protected $storageGetLimit;
+
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
@@ -254,7 +257,8 @@ class QueryPlan
                 } else {
                     $resultSet = $this->storage->get(
                         $schema['table'],
-                        $this->extractWhereConditions()
+                        $this->extractWhereConditions(),
+                        $this->storageGetLimit
                     );
                 }
             }
@@ -1011,6 +1015,16 @@ class QueryPlan
     public function setLimit($limit): self
     {
         $this->limit = $limit;
+        return $this;
+    }
+
+    /**
+     * @param $storageGetLimit
+     * @return $this
+     */
+    public function setStorageGetLimit($storageGetLimit): self
+    {
+        $this->storageGetLimit = $storageGetLimit;
         return $this;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\components\optimizers;
 
+use App\components\elements\condition\Condition;
 use App\components\plans\Plan;
 use App\components\plans\QueryPlan;
 
@@ -22,12 +23,28 @@ class RulesBasedOptimizer
 
     public function optimize()
     {
-        if (!($this->plan instanceof QueryPlan)) {
+        if (!($this->plan->getExecutePlan() instanceof QueryPlan)) {
             return $this->plan;
         }
 
         //todo
 
+        $this->setStorageGetLimit();
+
         return $this->plan;
+    }
+
+    protected function setStorageGetLimit()
+    {
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+        $condition = $queryPlan->getCondition();
+        $limit = $queryPlan->getLimit();
+        if (is_null($limit)) {
+            return;
+        }
+        if ($condition instanceof Condition) {
+            $queryPlan->setStorageGetLimit($limit);
+        }
     }
 }

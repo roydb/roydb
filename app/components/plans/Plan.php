@@ -43,4 +43,12 @@ class Plan
     {
         return $this->executePlan->execute();
     }
+
+    /**
+     * @return mixed
+     */
+    public function getExecutePlan()
+    {
+        return $this->executePlan;
+    }
 }

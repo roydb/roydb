@@ -34,10 +34,10 @@ class LevelDB extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
-    public function get($schema, $condition)
+    public function get($schema, $condition, $limit)
     {
         //todo $columns 应该是plan选择过的，因为某些字段不需要返回，但是查询条件可能需要用到
-        return $this->conditionFilter($schema, $condition);
+        return $this->conditionFilter($schema, $condition, $limit);
     }
 
     protected function openBtree($name, $new = false)
@@ -171,7 +171,7 @@ class LevelDB extends AbstractStorage
         return $result;
     }
 
-    protected function filterBasicCompareCondition($schema, Condition $condition)
+    protected function filterBasicCompareCondition($schema, Condition $condition, $limit)
     {
         $operatorHandler = new OperatorHandler();
         $conditionOperator = $condition->getOperator();
@@ -207,6 +207,13 @@ class LevelDB extends AbstractStorage
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
                     $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
+                    if (!is_null($limit)) {
+                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                        $limitCount = $limit['rowcount'];
+                        if (count($indexData) === ($offset + $limitCount)) {
+                            break;
+                        }
+                    }
                 }
             }
             return $indexData;
@@ -220,6 +227,13 @@ class LevelDB extends AbstractStorage
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));
+                    if (!is_null($limit)) {
+                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                        $limitCount = $limit['rowcount'];
+                        if (count($indexData) === ($offset + $limitCount)) {
+                            break;
+                        }
+                    }
                 }
             }
             return $indexData;
@@ -234,7 +248,7 @@ class LevelDB extends AbstractStorage
         }
     }
 
-    protected function filterBetweenCondition($schema, Condition $condition)
+    protected function filterBetweenCondition($schema, Condition $condition, $limit)
     {
         $operatorHandler = new OperatorHandler();
         $conditionOperator = $condition->getOperator();
@@ -286,6 +300,13 @@ class LevelDB extends AbstractStorage
                     ...[$nextIt->key(), $operandValue2, $operandValue3]
                 )) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));
+                    if (!is_null($limit)) {
+                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                        $limitCount = $limit['rowcount'];
+                        if (count($indexData) === ($offset + $limitCount)) {
+                            break;
+                        }
+                    }
                 }
             }
             return $indexData;
@@ -296,13 +317,13 @@ class LevelDB extends AbstractStorage
         //todo support more situations
     }
 
-    protected function filterCondition($schema, Condition $condition)
+    protected function filterCondition($schema, Condition $condition, $limit)
     {
         $conditionOperator = $condition->getOperator();
         if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
-            return $this->filterBasicCompareCondition($schema, $condition);
+            return $this->filterBasicCompareCondition($schema, $condition, $limit);
         } elseif ($conditionOperator === 'between') {
-            return $this->filterBetweenCondition($schema, $condition);
+            return $this->filterBetweenCondition($schema, $condition, $limit);
         }
 
         return $this->fetchAllPrimaryIndexData($schema);
@@ -310,15 +331,15 @@ class LevelDB extends AbstractStorage
         //todo support more operators
     }
 
-    protected function filterConditionTree($schema, ConditionTree $conditionTree)
+    protected function filterConditionTree($schema, ConditionTree $conditionTree, $limit)
     {
         $result = [];
 
         foreach ($conditionTree->getSubConditions() as $i => $subCondition) {
             if ($subCondition instanceof Condition) {
-                $subResult = $this->filterCondition($schema, $subCondition);
+                $subResult = $this->filterCondition($schema, $subCondition, $limit);
             } else {
-                $subResult = $this->filterConditionTree($schema, $subCondition);
+                $subResult = $this->filterConditionTree($schema, $subCondition, $limit);
             }
             $result = array_merge($result, $subResult);
         }
@@ -340,21 +361,22 @@ class LevelDB extends AbstractStorage
      *
      * @param $schema
      * @param $condition
+     * @param $limit
      * @return array
      */
-    protected function conditionFilter($schema, $condition)
+    protected function conditionFilter($schema, $condition, $limit)
     {
         //todo choose idx using plan, maybe using optimizer ?
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
-                $indexData = $this->filterCondition($schema, $condition);
+                $indexData = $this->filterCondition($schema, $condition, $limit);
                 foreach ($indexData as $i => $row) {
                     if (!$this->filterConditionByIndexData($schema, $row, $condition)) {
                         unset($indexData[$i]);
                     }
                 }
             } else {
-                $indexData = $this->filterConditionTree($schema, $condition);
+                $indexData = $this->filterConditionTree($schema, $condition, $limit);
                 foreach ($indexData as $i => $row) {
                     if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
                         unset($indexData[$i]);
