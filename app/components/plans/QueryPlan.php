@@ -345,7 +345,8 @@ class QueryPlan
 
                 $rightResultSet = $this->storage->get(
                     $schema['table'],
-                    $conditionTree
+                    $conditionTree,
+                    $this->storageGetLimit
                 );
 
                 foreach ($rightResultSet as $rightRow) {
@@ -392,7 +393,7 @@ class QueryPlan
                 }
                 $conditionTree->addSubConditions($onCondition);
 
-                $rightResultSet = $this->storage->get($schemaTable, $conditionTree);
+                $rightResultSet = $this->storage->get($schemaTable, $conditionTree, $this->storageGetLimit);
 
                 foreach ($rightResultSet as $rightRow) {
                     if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
@@ -439,7 +440,8 @@ class QueryPlan
         if (!$filledWithLeftResult) {
             $rightResultSet = $this->storage->get(
                 $schemaTable,
-                $this->extractWhereConditions()
+                $this->extractWhereConditions(),
+                $this->storageGetLimit
             );
         } else {
             $rightResultSet = [];
@@ -453,7 +455,8 @@ class QueryPlan
 
                 $rightResultSet = array_merge($rightResultSet, $this->storage->get(
                     $schemaTable,
-                    $whereCondition
+                    $whereCondition,
+                    $this->storageGetLimit
                 ));
             }
             $idMap = [];
