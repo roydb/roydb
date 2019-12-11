@@ -204,16 +204,22 @@ class LevelDB extends AbstractStorage
                 return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
+            $matched = false;
             $nextIt = new \LevelDBIterator($index);
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
                     $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
+                    $matched = true;
                     if (!is_null($limit)) {
                         $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
                         $limitCount = $limit['rowcount'];
                         if (count($indexData) === ($offset + $limitCount)) {
                             break;
                         }
+                    }
+                } else {
+                    if ($matched && ($conditionOperator === '=')) {
+                        break;
                     }
                 }
             }
@@ -224,16 +230,22 @@ class LevelDB extends AbstractStorage
                 return $this->fetchAllPrimaryIndexData($schema);
             }
             $indexData = [];
+            $matched = false;
             $nextIt = new \LevelDBIterator($index);
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));
+                    $matched = true;
                     if (!is_null($limit)) {
                         $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
                         $limitCount = $limit['rowcount'];
                         if (count($indexData) === ($offset + $limitCount)) {
                             break;
                         }
+                    }
+                } else {
+                    if ($matched && ($conditionOperator === '=')) {
+                        break;
                     }
                 }
             }
@@ -340,6 +352,7 @@ class LevelDB extends AbstractStorage
             if ($subCondition instanceof Condition) {
                 $subResult = $this->filterCondition($schema, $subCondition, $limit);
             } else {
+                //todo fetch result intersect
                 $subResult = $this->filterConditionTree($schema, $subCondition, $limit);
             }
             $result = array_merge($result, $subResult);
