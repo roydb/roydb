@@ -10,7 +10,7 @@ class Parser
 
     public static function fromSql($sql)
     {
-        return (new static($sql))->parseAst();
+        return (new static($sql));
     }
 
     public function __construct($sql)

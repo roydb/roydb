@@ -2,7 +2,6 @@
 
 namespace App\components\storage\leveldb;
 
-use App\components\consts\Operator;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\math\OperatorHandler;

@@ -2,6 +2,8 @@
 
 namespace App\services;
 
+use App\components\optimizers\CostBasedOptimizer;
+use App\components\optimizers\RulesBasedOptimizer;
 use App\components\Parser;
 use App\components\plans\Plan;
 use App\components\storage\leveldb\LevelDB;
@@ -168,8 +170,10 @@ class QueryService extends BaseService
 
         $start = microtime(true);
         $sql = $this->request->post('sql');
-        $ast = Parser::fromSql($sql);
+        $ast = Parser::fromSql($sql)->parseAst();
         $plan = Plan::create($ast, LevelDB::create());
+        $plan = RulesBasedOptimizer::fromPlan($plan)->optimize();
+        $plan = CostBasedOptimizer::fromPlan($plan)->optimize();
         $resultSet = $plan->execute();
 
         return [
