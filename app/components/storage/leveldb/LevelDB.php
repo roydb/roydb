@@ -183,7 +183,7 @@ class LevelDB extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+                    return [];
                 }
             }
         }
@@ -193,7 +193,7 @@ class LevelDB extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+                    return [];
                 }
             }
         }
@@ -257,7 +257,7 @@ class LevelDB extends AbstractStorage
                 return [];
             }
         } else {
-            return $this->fetchAllPrimaryIndexData($schema);
+            return [];
         }
     }
 
@@ -273,7 +273,7 @@ class LevelDB extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+                    return [];
                 }
             }
         }
@@ -284,7 +284,7 @@ class LevelDB extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+                    return [];
                 }
             }
         }
@@ -295,7 +295,7 @@ class LevelDB extends AbstractStorage
             if (strpos($operandValue3, '.')) {
                 list($operandSchema3, $operandValue3) = explode('.', $operandValue3);
                 if ($operandSchema3 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema);
+                    return [];
                 }
             }
         }
@@ -324,7 +324,7 @@ class LevelDB extends AbstractStorage
             }
             return $indexData;
         } else {
-            return $this->fetchAllPrimaryIndexData($schema);
+            return [];
         }
 
         //todo support more situations
@@ -348,18 +348,35 @@ class LevelDB extends AbstractStorage
     {
         $result = [];
 
+        $inclusiveIds = [];
+
         foreach ($conditionTree->getSubConditions() as $i => $subCondition) {
             if ($subCondition instanceof Condition) {
                 $subResult = $this->filterCondition($schema, $subCondition, $limit);
             } else {
-                //todo fetch result intersect
                 $subResult = $this->filterConditionTree($schema, $subCondition, $limit);
             }
+
+            if ($conditionTree->getLogicOperator() === 'and') {
+                if (count($inclusiveIds) === 0) {
+                    $inclusiveIds = array_column($subResult, 'id');
+                } else {
+                    $inclusiveIds = array_intersect($inclusiveIds, array_column($subResult, 'id'));
+                }
+            }
+
             $result = array_merge($result, $subResult);
         }
 
         $idMap = [];
         foreach ($result as $i => $row) {
+            if ($conditionTree->getLogicOperator() === 'and') {
+                if (!in_array($row['id'], $inclusiveIds)) {
+                    unset($result[$i]);
+                    continue;
+                }
+            }
+
             if (in_array($row['id'], $idMap)) {
                 unset($result[$i]);
             } else {
