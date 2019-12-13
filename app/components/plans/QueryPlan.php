@@ -260,7 +260,8 @@ class QueryPlan
                     $resultSet = $this->storage->get(
                         $schema['table'],
                         $this->extractWhereConditions(),
-                        $this->storageGetLimit
+                        $this->storageGetLimit,
+                        $this->indexSuggestions
                     );
                 }
             }
@@ -348,7 +349,8 @@ class QueryPlan
                 $rightResultSet = $this->storage->get(
                     $schema['table'],
                     $conditionTree,
-                    $this->storageGetLimit
+                    $this->storageGetLimit,
+                    $this->indexSuggestions
                 );
 
                 foreach ($rightResultSet as $rightRow) {
@@ -395,7 +397,12 @@ class QueryPlan
                 }
                 $conditionTree->addSubConditions($onCondition);
 
-                $rightResultSet = $this->storage->get($schemaTable, $conditionTree, $this->storageGetLimit);
+                $rightResultSet = $this->storage->get(
+                    $schemaTable,
+                    $conditionTree,
+                    $this->storageGetLimit,
+                    $this->indexSuggestions
+                );
 
                 foreach ($rightResultSet as $rightRow) {
                     if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
@@ -443,7 +450,8 @@ class QueryPlan
             $rightResultSet = $this->storage->get(
                 $schemaTable,
                 $this->extractWhereConditions(),
-                $this->storageGetLimit
+                $this->storageGetLimit,
+                $this->indexSuggestions
             );
         } else {
             $rightResultSet = [];
@@ -458,7 +466,8 @@ class QueryPlan
                 $rightResultSet = array_merge($rightResultSet, $this->storage->get(
                     $schemaTable,
                     $whereCondition,
-                    $this->storageGetLimit
+                    $this->storageGetLimit,
+                    $this->indexSuggestions
                 ));
             }
             $idMap = [];

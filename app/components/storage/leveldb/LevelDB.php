@@ -34,7 +34,7 @@ class LevelDB extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
-    public function get($schema, $condition, $limit)
+    public function get($schema, $condition, $limit, $indexSuggestions)
     {
         //todo $columns 应该是plan选择过的，因为某些字段不需要返回，但是查询条件可能需要用到
         return $this->conditionFilter($schema, $condition, $limit);
@@ -358,8 +358,6 @@ class LevelDB extends AbstractStorage
     {
         $result = [];
 
-        $inclusiveIds = [];
-
         foreach ($conditionTree->getSubConditions() as $i => $subCondition) {
             if ($subCondition instanceof Condition) {
                 $subResult = $this->filterCondition($schema, $subCondition, $limit);
@@ -367,26 +365,11 @@ class LevelDB extends AbstractStorage
                 $subResult = $this->filterConditionTree($schema, $subCondition, $limit);
             }
 
-            if ($conditionTree->getLogicOperator() === 'and') {
-                if (count($inclusiveIds) === 0) {
-                    $inclusiveIds = array_column($subResult, 'id');
-                } else {
-                    $inclusiveIds = array_intersect($inclusiveIds, array_column($subResult, 'id'));
-                }
-            }
-
             $result = array_merge($result, $subResult);
         }
 
         $idMap = [];
         foreach ($result as $i => $row) {
-            if ($conditionTree->getLogicOperator() === 'and') {
-                if (!in_array($row['id'], $inclusiveIds)) {
-                    unset($result[$i]);
-                    continue;
-                }
-            }
-
             if (in_array($row['id'], $idMap)) {
                 unset($result[$i]);
             } else {
@@ -411,11 +394,6 @@ class LevelDB extends AbstractStorage
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
                 $indexData = $this->filterCondition($schema, $condition, $limit);
-                foreach ($indexData as $i => $row) {
-                    if (!$this->filterConditionByIndexData($schema, $row, $condition)) {
-                        unset($indexData[$i]);
-                    }
-                }
             } else {
                 $indexData = $this->filterConditionTree($schema, $condition, $limit);
                 foreach ($indexData as $i => $row) {
