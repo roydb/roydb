@@ -2,6 +2,7 @@
 
 namespace App\components\optimizers;
 
+use App\components\elements\condition\ConditionTree;
 use App\components\plans\Plan;
 use App\components\plans\QueryPlan;
 
@@ -35,8 +36,6 @@ class CostBasedOptimizer
 
     protected function setIndexSuggestion()
     {
-        //todo
-
         /** @var QueryPlan $queryPlan */
         $queryPlan = $this->plan->getExecutePlan();
         $condition = $queryPlan->getCondition();
@@ -44,10 +43,17 @@ class CostBasedOptimizer
             return;
         }
 
+        $this->setIndexSuggestionByCondition($condition);
     }
 
-    protected function getIndexNameFromCondition($condition)
+    protected function setIndexSuggestionByCondition($condition)
     {
-
+        if ($condition instanceof ConditionTree) {
+            foreach ($condition->getSubConditions() as $subCondition) {
+                $this->setIndexSuggestionByCondition($subCondition);
+            }
+        } else {
+            //todo
+        }
     }
 }
