@@ -2,6 +2,7 @@
 
 namespace App\components\optimizers;
 
+use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\plans\Plan;
 use App\components\plans\QueryPlan;
@@ -43,17 +44,63 @@ class CostBasedOptimizer
             return;
         }
 
-        $this->setIndexSuggestionByCondition($condition);
+        $schemas = $queryPlan->getSchemas();
+        $tableNames = array_column($schemas, 'table');
+
+        foreach ($tableNames as $tableName) {
+            $this->setIndexSuggestionByCondition($tableName, $condition, $queryPlan);
+        }
     }
 
-    protected function setIndexSuggestionByCondition($condition)
+    protected function setIndexSuggestionByCondition($schema, $condition, QueryPlan $queryPlan)
     {
         if ($condition instanceof ConditionTree) {
             foreach ($condition->getSubConditions() as $subCondition) {
-                $this->setIndexSuggestionByCondition($subCondition);
+                $this->setIndexSuggestionByCondition($schema, $subCondition, $queryPlan);
             }
-        } else {
-            //todo
+        } elseif ($condition instanceof Condition) {
+            $columnNames = [];
+            foreach ($condition->getOperands() as $operand) {
+                if ($operand->getType() === 'colref') {
+                    $operandValue = $operand->getValue();
+                    if (strpos($operandValue, '.')) {
+                        list(, $columnName) = explode('.', $operandValue);
+                    } else {
+                        $columnName = $operandValue;
+                    }
+
+                    $columnNames[] = $columnName;
+                }
+            }
+
+            foreach ($columnNames as $columnName) {
+                if ($columnName === 'id') { //todo fetch primary key from schema meta data
+                    $queryPlan->setOneIndexSuggestion($schema, $columnName, $schema);
+                } else {
+                    if ($condition->getOperator() === '=') {
+                        $queryPlan->setOneIndexSuggestion(
+                            $schema,
+                            $columnName,
+                            $schema . '.' . $columnName
+                        );
+                    } else {
+                        $indexDuplicated = 0.5; //todo fetch from meta data
+                        if ($indexDuplicated >= 0.5) {
+                            $queryPlan->setOneIndexSuggestion(
+                                $schema,
+                                $columnName,
+                                $schema . '.' . $columnName
+                            );
+                        } else {
+                            $queryPlan->setOneIndexSuggestion(
+                                $schema,
+                                $columnName,
+                                $schema
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 }
