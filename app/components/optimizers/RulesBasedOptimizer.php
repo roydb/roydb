@@ -39,6 +39,9 @@ class RulesBasedOptimizer
         /** @var QueryPlan $queryPlan */
         $queryPlan = $this->plan->getExecutePlan();
         $condition = $queryPlan->getCondition();
+        if (is_null($condition)) {
+            return;
+        }
         $limit = $queryPlan->getLimit();
         if (is_null($limit)) {
             return;

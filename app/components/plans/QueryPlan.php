@@ -60,6 +60,8 @@ class QueryPlan
     //Optimization properties
     protected $storageGetLimit;
 
+    protected $indexSuggestions;
+
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
@@ -1028,6 +1030,28 @@ class QueryPlan
     public function setStorageGetLimit($storageGetLimit): self
     {
         $this->storageGetLimit = $storageGetLimit;
+        return $this;
+    }
+
+    /**
+     * @param $indexSuggestions
+     * @return $this
+     */
+    public function setIndexSuggestions($indexSuggestions): self
+    {
+        $this->indexSuggestions = $indexSuggestions;
+        return $this;
+    }
+
+    /**
+     * @param $schema
+     * @param $column
+     * @param $indexName
+     * @return $this
+     */
+    public function setOneIndexSuggestion($schema, $column, $indexName): self
+    {
+        $this->indexSuggestions[$schema][$column] = $indexName;
         return $this;
     }
 }

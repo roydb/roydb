@@ -206,6 +206,11 @@ class LevelDB extends AbstractStorage
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
+            if ($conditionOperator === '=') {
+                if ($index->get($operandValue2) !== false) {
+                    $nextIt->seek($operandValue2);
+                }
+            }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
                     $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
@@ -232,6 +237,11 @@ class LevelDB extends AbstractStorage
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
+            if ($conditionOperator === '=') {
+                if ($index->get($operandValue1) !== false) {
+                    $nextIt->seek($operandValue1);
+                }
+            }
             for (; $nextIt->valid(); $nextIt->next()) {
                 if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
                     $indexData = array_merge(json_decode($nextIt->current(), true));

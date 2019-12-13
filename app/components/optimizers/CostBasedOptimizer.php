@@ -36,5 +36,18 @@ class CostBasedOptimizer
     protected function setIndexSuggestion()
     {
         //todo
+
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+        $condition = $queryPlan->getCondition();
+        if (is_null($condition)) {
+            return;
+        }
+
+    }
+
+    protected function getIndexNameFromCondition($condition)
+    {
+
     }
 }
