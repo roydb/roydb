@@ -81,7 +81,10 @@ class CostBasedOptimizer
                         $queryPlan->setOneIndexSuggestion(
                             $schema,
                             $columnName,
-                            $schema . '.' . $columnName
+                            [
+                                'indexName' => $schema . '.' . $columnName,
+                                'primaryIndex' => false,
+                            ]
                         );
                     } else {
                         $indexDuplicated = 0.5; //todo fetch from meta data
@@ -89,13 +92,19 @@ class CostBasedOptimizer
                             $queryPlan->setOneIndexSuggestion(
                                 $schema,
                                 $columnName,
-                                $schema . '.' . $columnName
+                                [
+                                    'indexName' => $schema . '.' . $columnName,
+                                    'primaryIndex' => false,
+                                ]
                             );
                         } else {
                             $queryPlan->setOneIndexSuggestion(
                                 $schema,
                                 $columnName,
-                                $schema
+                                [
+                                    'indexName' => $schema,
+                                    'primaryIndex' => true,
+                                ]
                             );
                         }
                     }
