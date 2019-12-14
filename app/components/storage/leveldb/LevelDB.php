@@ -199,21 +199,38 @@ class LevelDB extends AbstractStorage
         }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const') {
+            $usingPrimaryIndex = false;
             $index = $this->openBtree($schema . '.' . $operandValue1);
             if ($index === false) {
+                $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
-            if ($conditionOperator === '=') {
-                if ($index->get($operandValue2) !== false) {
-                    $nextIt->seek($operandValue2);
+            if (!$usingPrimaryIndex) {
+                if ($conditionOperator === '=') {
+                    if ($index->get($operandValue2) !== false) {
+                        $nextIt->seek($operandValue2);
+                    }
                 }
             }
             for (; $nextIt->valid(); $nextIt->next()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue2])) {
-                    $indexData = array_merge($indexData, json_decode($nextIt->current(), true));
+                $row = json_decode($nextIt->current(), true);
+                if ($usingPrimaryIndex) {
+                    if (!array_key_exists($operandValue1, $row)) {
+                        break;
+                    }
+                    $indexColumnValue = $row[$operandValue1];
+                } else {
+                    $indexColumnValue = $nextIt->key();
+                }
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$indexColumnValue, $operandValue2])) {
+                    if ($usingPrimaryIndex) {
+                        $indexData[] = $row;
+                    } else {
+                        $indexData = array_merge($indexData, $row);
+                    }
                     $matched = true;
                     if (!is_null($limit)) {
                         $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
@@ -230,21 +247,38 @@ class LevelDB extends AbstractStorage
             }
             return $indexData;
         } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
+            $usingPrimaryIndex = false;
             $index = $this->openBtree($schema . '.' . $operandValue2);
             if ($index === false) {
+                $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
-            if ($conditionOperator === '=') {
-                if ($index->get($operandValue1) !== false) {
-                    $nextIt->seek($operandValue1);
+            if (!$usingPrimaryIndex) {
+                if ($conditionOperator === '=') {
+                    if ($index->get($operandValue1) !== false) {
+                        $nextIt->seek($operandValue1);
+                    }
                 }
             }
             for (; $nextIt->valid(); $nextIt->next()) {
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$nextIt->key(), $operandValue1])) {
-                    $indexData = array_merge(json_decode($nextIt->current(), true));
+                $row = json_decode($nextIt->current(), true);
+                if ($usingPrimaryIndex) {
+                    if (!array_key_exists($operandValue2, $row)) {
+                        break;
+                    }
+                    $indexColumnValue = $row[$operandValue2];
+                } else {
+                    $indexColumnValue = $nextIt->key();
+                }
+                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$indexColumnValue, $operandValue1])) {
+                    if ($usingPrimaryIndex) {
+                        $indexData[] = $row;
+                    } else {
+                        $indexData = array_merge($indexData, $row);
+                    }
                     $matched = true;
                     if (!is_null($limit)) {
                         $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
@@ -311,18 +345,33 @@ class LevelDB extends AbstractStorage
         }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
+            $usingPrimaryIndex = false;
             $index = $this->openBtree($schema . '.' . $operandValue1);
             if ($index === false) {
+                $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
             $indexData = [];
             $nextIt = new \LevelDBIterator($index);
             for (; $nextIt->valid(); $nextIt->next()) {
+                $row = json_decode($nextIt->current(), true);
+                if ($usingPrimaryIndex) {
+                    if (!array_key_exists($operandValue1, $row)) {
+                        break;
+                    }
+                    $indexColumnValue = $row[$operandValue1];
+                } else {
+                    $indexColumnValue = $nextIt->key();
+                }
                 if ($operatorHandler->calculateOperatorExpr(
                     $conditionOperator,
-                    ...[$nextIt->key(), $operandValue2, $operandValue3]
+                    ...[$indexColumnValue, $operandValue2, $operandValue3]
                 )) {
-                    $indexData = array_merge(json_decode($nextIt->current(), true));
+                    if ($usingPrimaryIndex) {
+                        $indexData[] = $row;
+                    } else {
+                        $indexData = array_merge($indexData, $row);
+                    }
                     if (!is_null($limit)) {
                         $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
                         $limitCount = $limit['rowcount'];
