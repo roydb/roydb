@@ -1,32 +1,46 @@
 <?php
 
-namespace App\components\storage\leveldb;
+namespace App\components\storage\pika;
 
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
+use SwFwLess\components\redis\RedisWrapper;
 use SwFwLess\components\traits\Singleton;
+use SwFwLess\facades\RedisPool;
 
-class LevelDB extends AbstractStorage
+class Pika extends AbstractStorage
 {
     use Singleton;
 
-    protected $btreeMap = [];
-
-    private function __construct()
-    {
-        $this->openBtree('meta.schema');
-        $this->openBtree('test');
-        $this->openBtree('test.name');
-        $this->openBtree('test2');
-        $this->openBtree('test2.name');
+    /**
+     * @param $index
+     * @param $callback
+     * @return mixed
+     * @throws \Throwable
+     */
+    protected function safeUseIndex($index, $callback) {
+        try {
+            return call_user_func_array($callback, [$index]);
+        } catch (\Throwable $e) {
+            throw $e;
+        } finally {
+            RedisPool::release($index);
+        }
     }
 
+    /**
+     * @param $schema
+     * @return mixed|null
+     * @throws \Throwable
+     */
     public function getSchemaMetaData($schema)
     {
         $metaSchema = $this->openBtree('meta.schema');
-        $schemaData = $metaSchema->get($schema);
+        $schemaData = $this->safeUseIndex($metaSchema, function (RedisWrapper $metaSchema) use ($schema) {
+            return $metaSchema->hGet('meta.schema', $schema);
+        });
         if ($schemaData === false) {
             return null;
         }
@@ -40,43 +54,27 @@ class LevelDB extends AbstractStorage
         return $this->conditionFilter($schema, $condition, $limit, $indexSuggestions);
     }
 
+    /**
+     * @param $name
+     * @param bool $new
+     * @return bool|\SwFwLess\components\redis\RedisWrapper
+     * @throws \Throwable
+     */
     protected function openBtree($name, $new = false)
     {
-        if (isset($this->btreeMap[$name])) {
-            return $this->btreeMap[$name];
+        $redis = RedisPool::pick('pika');
+        try {
+            if (!$new) {
+                if (!$redis->exists($name)) {
+                    return false;
+                }
+            }
+
+            return $redis;
+        } catch (\Throwable $e) {
+            RedisPool::release($redis);
+            throw $e;
         }
-
-        $btreePath = \SwFwLess\facades\File::storagePath() . '/btree/' . $name;
-        if ((!$new) && (!is_dir($btreePath))) {
-            return false;
-        }
-
-        /* default open options */
-        $options = array(
-            'create_if_missing' => true,	// if the specified database didn't exist will create a new one
-            'error_if_exists'	=> false,	// if the opened database exsits will throw exception
-            'paranoid_checks'	=> false,
-            'block_cache_size'	=> 8 * (2 << 20),
-            'write_buffer_size' => 4<<20,
-            'block_size'		=> 4096,
-            'max_open_files'	=> 1000,
-            'block_restart_interval' => 16,
-            'compression'		=> LEVELDB_SNAPPY_COMPRESSION,
-            'comparator'		=> NULL,   // any callable parameter which returns 0, -1, 1
-        );
-        /* default readoptions */
-        $readoptions = array(
-            'verify_check_sum'	=> false,
-            'fill_cache'		=> true,
-            'snapshot'			=> null
-        );
-
-        /* default write options */
-        $writeoptions = array(
-            'sync' => false
-        );
-
-        return $this->btreeMap[$name] = new \LevelDB($btreePath, $options, $readoptions, $writeoptions);
     }
 
     protected function fetchAllPrimaryIndexData($schema)
@@ -86,12 +84,42 @@ class LevelDB extends AbstractStorage
         if ($index === false) {
             return [];
         }
-        $indexData = array();
-        $it = new \LevelDBIterator($index);
-        foreach($it as $key => $value) {
-            $indexData[] = json_decode($value, true);
-        }
-        return $indexData;
+
+        return $this->safeUseIndex($index, function (RedisWrapper $index) use ($schema) {
+            $indexData = [];
+            $startKey = '';
+            while ($result = $index->rawCommand(
+                'pkhscanrange',
+                $index->_prefix($schema),
+                $startKey,
+                '',
+                'MATCH',
+                '*',
+                'LIMIT',
+                100
+            )) {
+                if (isset($result[1])) {
+                    $skipFirst = $startKey !== '';
+                    foreach ($result[1] as $key => $data) {
+                        if ($skipFirst) {
+                            if (in_array($key, [0, 1])) {
+                                continue;
+                            }
+                        }
+
+                        if ($key % 2 != 0) {
+                            $indexData[] = json_decode($data, true);
+                        } else {
+                            $startKey = $key;
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            return $indexData;
+        });
     }
 
     protected function fetchPrimaryIndexDataById($id, $schema)
