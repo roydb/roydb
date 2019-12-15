@@ -286,7 +286,10 @@ class Pika extends AbstractStorage
             $usingPrimaryIndex = false;
             $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
             if (!is_null($suggestIndex)) {
-                $index = $this->openBtree($schema . '.' . $field);
+                $index = $this->openBtree($suggestIndex['indexName']);
+                if ($index !== false) {
+                    $usingPrimaryIndex = $suggestIndex['primaryIndex'];
+                }
             }
             if ($index === false) {
                 $index = $this->openBtree($schema . '.' . $field);
@@ -453,8 +456,18 @@ class Pika extends AbstractStorage
         }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
+            $index = false;
             $usingPrimaryIndex = false;
-            $index = $this->openBtree($schema . '.' . $operandValue1);
+            $suggestIndex = $indexSuggestions[$schema][$operandValue1] ?? null;
+            if (!is_null($suggestIndex)) {
+                $index = $this->openBtree($suggestIndex['indexName']);
+                if ($index !== false) {
+                    $usingPrimaryIndex = $suggestIndex['primaryIndex'];
+                }
+            }
+            if ($index === false) {
+                $index = $this->openBtree($schema . '.' . $operandValue1);
+            }
             if ($index === false) {
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
