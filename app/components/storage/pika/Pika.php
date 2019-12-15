@@ -87,10 +87,11 @@ class Pika extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $limit
      * @return array|mixed
      * @throws \Throwable
      */
-    protected function fetchAllPrimaryIndexData($schema)
+    protected function fetchAllPrimaryIndexData($schema, $limit)
     {
         //todo optimize for storage get limit
         $index = $this->openBtree($schema);
@@ -98,10 +99,20 @@ class Pika extends AbstractStorage
             return [];
         }
 
-        return $this->safeUseIndex($index, function (RedisWrapper $index) use ($schema) {
+        $itLimit = 100;
+        $offsetLimitCount = null;
+        if (!is_null($limit)) {
+            $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+            $itLimit = $limitCount = $limit['rowcount'];
+            $offsetLimitCount = $offset + $limitCount;
+        }
+
+        return $this->safeUseIndex($index, function (RedisWrapper $index) use (
+            $schema, $itLimit, $offsetLimitCount
+        ) {
             $indexData = [];
             $startKey = '';
-            while ($result = $index->rawCommand(
+            while (($result = $index->rawCommand(
                 'pkhscanrange',
                 $index->_prefix($schema),
                 $startKey,
@@ -109,25 +120,39 @@ class Pika extends AbstractStorage
                 'MATCH',
                 '*',
                 'LIMIT',
-                100
-            )) {
-                if (isset($result[1])) {
-                    $skipFirst = ($startKey !== '');
-                    foreach ($result[1] as $key => $data) {
-                        if ($skipFirst) {
-                            if (in_array($key, [0, 1])) {
-                                continue;
-                            }
-                        }
-
-                        if ($key % 2 != 0) {
-                            $indexData[] = json_decode($data, true);
-                        } else {
-                            $startKey = $key;
+                $itLimit
+            )) && isset($result[1])) {
+                $skipFirst = ($startKey !== '');
+                foreach ($result[1] as $key => $data) {
+                    if ($skipFirst) {
+                        if (in_array($key, [0, 1])) {
+                            continue;
                         }
                     }
+
+                    if ($key % 2 != 0) {
+                        $indexData[] = json_decode($data, true);
+                    } else {
+                        $startKey = $data;
+                    }
+                }
+
+                $resultCnt = count($result[1]);
+
+                if ($skipFirst) {
+                    if ($resultCnt <= 2) {
+                        break;
+                    }
                 } else {
-                    break;
+                    if ($resultCnt <= 0) {
+                        break;
+                    }
+                }
+
+                if (!is_null($offsetLimitCount)) {
+                    if (count($indexData) >= $offsetLimitCount) {
+                        break;
+                    }
                 }
             }
 
@@ -407,7 +432,7 @@ class Pika extends AbstractStorage
             });
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
-                return $this->fetchAllPrimaryIndexData($schema);
+                return $this->fetchAllPrimaryIndexData($schema, $limit);
             } else {
                 return [];
             }
@@ -580,7 +605,7 @@ class Pika extends AbstractStorage
             return $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions);
         }
 
-        return $this->fetchAllPrimaryIndexData($schema);
+        return [];
 
         //todo support more operators
     }
@@ -648,7 +673,7 @@ class Pika extends AbstractStorage
                 $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
             }
         } else {
-            $indexData = $this->fetchAllPrimaryIndexData($schema);
+            $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);
         }
 
         foreach ($indexData as $i => $row) {

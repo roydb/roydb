@@ -396,7 +396,7 @@ class LevelDB extends AbstractStorage
             return $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions);
         }
 
-        return $this->fetchAllPrimaryIndexData($schema);
+        return [];
 
         //todo support more operators
     }
