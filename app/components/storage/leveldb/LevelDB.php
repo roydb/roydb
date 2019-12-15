@@ -79,17 +79,30 @@ class LevelDB extends AbstractStorage
         return $this->btreeMap[$name] = new \LevelDB($btreePath, $options, $readoptions, $writeoptions);
     }
 
-    protected function fetchAllPrimaryIndexData($schema)
+    protected function fetchAllPrimaryIndexData($schema, $limit)
     {
         //todo optimize for storage get limit
         $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
         }
+
+        $offsetLimit = null;
+        if (!is_null($limit)) {
+            $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+            $limitCount = $limit['rowcount'];
+            $offsetLimit = $offset + $limitCount;
+        }
+
         $indexData = array();
         $it = new \LevelDBIterator($index);
         foreach($it as $key => $value) {
             $indexData[] = json_decode($value, true);
+            if (!is_null($offsetLimit)) {
+                if (count($indexData) >= $offsetLimit) {
+                    break;
+                }
+            }
         }
         return $indexData;
     }
@@ -205,6 +218,14 @@ class LevelDB extends AbstractStorage
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
+
+            $offsetLimit = null;
+            if (!is_null($limit)) {
+                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                $limitCount = $limit['rowcount'];
+                $offsetLimit = $offset + $limitCount;
+            }
+
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
@@ -232,10 +253,8 @@ class LevelDB extends AbstractStorage
                         $indexData = array_merge($indexData, $row);
                     }
                     $matched = true;
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+                    if (!is_null($offsetLimit)) {
+                        if (count($indexData) >= $offsetLimit) {
                             break;
                         }
                     }
@@ -253,6 +272,14 @@ class LevelDB extends AbstractStorage
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
+
+            $offsetLimit = null;
+            if (!is_null($limit)) {
+                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                $limitCount = $limit['rowcount'];
+                $offsetLimit = $offset + $limitCount;
+            }
+
             $indexData = [];
             $matched = false;
             $nextIt = new \LevelDBIterator($index);
@@ -280,10 +307,8 @@ class LevelDB extends AbstractStorage
                         $indexData = array_merge($indexData, $row);
                     }
                     $matched = true;
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+                    if (!is_null($offsetLimit)) {
+                        if (count($indexData) >= $offsetLimit) {
                             break;
                         }
                     }
@@ -296,7 +321,7 @@ class LevelDB extends AbstractStorage
             return $indexData;
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
-                return $this->fetchAllPrimaryIndexData($schema);
+                return $this->fetchAllPrimaryIndexData($schema, $limit);
             } else {
                 return [];
             }
@@ -351,6 +376,14 @@ class LevelDB extends AbstractStorage
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
+
+            $offsetLimit = null;
+            if (!is_null($limit)) {
+                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                $limitCount = $limit['rowcount'];
+                $offsetLimit = $offset + $limitCount;
+            }
+
             $indexData = [];
             $nextIt = new \LevelDBIterator($index);
             for (; $nextIt->valid(); $nextIt->next()) {
@@ -372,10 +405,8 @@ class LevelDB extends AbstractStorage
                     } else {
                         $indexData = array_merge($indexData, $row);
                     }
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+                    if (!is_null($offsetLimit)) {
+                        if (count($indexData) >= $offsetLimit) {
                             break;
                         }
                     }
@@ -455,7 +486,7 @@ class LevelDB extends AbstractStorage
                 $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
             }
         } else {
-            $indexData = $this->fetchAllPrimaryIndexData($schema);
+            $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);
         }
 
         foreach ($indexData as $i => $row) {
