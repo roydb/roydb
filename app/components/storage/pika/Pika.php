@@ -48,6 +48,14 @@ class Pika extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
+    /**
+     * @param $schema
+     * @param $condition
+     * @param $limit
+     * @param $indexSuggestions
+     * @return array
+     * @throws \Throwable
+     */
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
         //todo $columns 应该是plan选择过的，因为某些字段不需要返回，但是查询条件可能需要用到
@@ -77,6 +85,11 @@ class Pika extends AbstractStorage
         }
     }
 
+    /**
+     * @param $schema
+     * @return array|mixed
+     * @throws \Throwable
+     */
     protected function fetchAllPrimaryIndexData($schema)
     {
         //todo optimize for storage get limit
@@ -99,7 +112,7 @@ class Pika extends AbstractStorage
                 100
             )) {
                 if (isset($result[1])) {
-                    $skipFirst = $startKey !== '';
+                    $skipFirst = ($startKey !== '');
                     foreach ($result[1] as $key => $data) {
                         if ($skipFirst) {
                             if (in_array($key, [0, 1])) {
@@ -122,13 +135,23 @@ class Pika extends AbstractStorage
         });
     }
 
+    /**
+     * @param $id
+     * @param $schema
+     * @return mixed|null
+     * @throws \Throwable
+     */
     protected function fetchPrimaryIndexDataById($id, $schema)
     {
         $index = $this->openBtree($schema);
         if ($index === false) {
             return null;
         }
-        $indexData = $index->get($id);
+
+        $indexData = $this->safeUseIndex($index, function (RedisWrapper $index) use ($id, $schema) {
+            return $index->hGet($schema, $id);
+        });
+
         if ($indexData === false) {
             return null;
         } else {
@@ -136,6 +159,13 @@ class Pika extends AbstractStorage
         }
     }
 
+    /**
+     * @param $schema
+     * @param $row
+     * @param Condition $condition
+     * @return bool
+     * @throws \Throwable
+     */
     protected function filterConditionByIndexData($schema, $row, Condition $condition)
     {
         $operands = $condition->getOperands();
@@ -166,6 +196,13 @@ class Pika extends AbstractStorage
         return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operandValues);
     }
 
+    /**
+     * @param $schema
+     * @param $row
+     * @param ConditionTree $conditionTree
+     * @return bool
+     * @throws \Throwable
+     */
     protected function filterConditionTreeByIndexData($schema, $row, ConditionTree $conditionTree)
     {
         $subConditions = $conditionTree->getSubConditions();
@@ -200,6 +237,14 @@ class Pika extends AbstractStorage
         return $result;
     }
 
+    /**
+     * @param $schema
+     * @param Condition $condition
+     * @param $limit
+     * @param $indexSuggestions
+     * @return array|mixed
+     * @throws \Throwable
+     */
     protected function filterBasicCompareCondition($schema, Condition $condition, $limit, $indexSuggestions)
     {
         $operatorHandler = new OperatorHandler();
@@ -226,102 +271,124 @@ class Pika extends AbstractStorage
             }
         }
 
-        if ($operandType1 === 'colref' && $operandType2 === 'const') {
+        if ((($operandType1 === 'colref') && ($operandType2 === 'const')) ||
+            (($operandType1 === 'const') && ($operandType2 === 'colref'))
+        ) {
+            if ((($operandType1 === 'colref') && ($operandType2 === 'const'))) {
+                $field = $operandValue1;
+                $conditionValue = $operandValue2;
+            } else {
+                $field = $operandValue2;
+                $conditionValue = $operandValue1;
+            }
+
             $usingPrimaryIndex = false;
-            $index = $this->openBtree($schema . '.' . $operandValue1);
+            $index = $this->openBtree($schema . '.' . $field);
             if ($index === false) {
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
-            $indexData = [];
-            $matched = false;
-            $nextIt = new \LevelDBIterator($index);
-            if (!$usingPrimaryIndex) {
-                if ($conditionOperator === '=') {
-                    if ($index->get($operandValue2) !== false) {
-                        $nextIt->seek($operandValue2);
-                    }
+            $itStart = '';
+            $itEnd = '';
+            $skipStart = false;
+            $skipEnd = false;
+            $itLimit = 100;
+            $offset = null;
+            $limitCount = null;
+            $offsetLimitCount = null;
+            if (!is_null($limit)) {
+                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                $itLimit = $limitCount = $limit['rowcount'];
+                $offsetLimitCount = $offset + $limitCount;
+                if ($skipStart) {
+                    $offsetLimitCount += 1;
+                }
+                if ($skipEnd) {
+                    $offsetLimitCount += 1;
                 }
             }
-            for (; $nextIt->valid(); $nextIt->next()) {
-                $row = json_decode($nextIt->current(), true);
-                if ($usingPrimaryIndex) {
-                    if (!array_key_exists($operandValue1, $row)) {
-                        break;
-                    }
-                    $indexColumnValue = $row[$operandValue1];
-                } else {
-                    $indexColumnValue = $nextIt->key();
+
+            if (!$usingPrimaryIndex) {
+                if ($conditionOperator === '=') {
+                    $itStart = $conditionValue;
+                    $itEnd = $conditionValue;
+                } elseif ($conditionOperator === '<') {
+                    $itEnd = $conditionValue;
+                    $skipEnd = true;
+                } elseif ($conditionOperator === '<=') {
+                    $itEnd = $conditionValue;
+                } elseif ($conditionOperator === '>') {
+                    $itStart = $conditionValue;
+                    $skipStart = true;
+                } elseif ($conditionOperator === '>=') {
+                    $itStart = $conditionValue;
                 }
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$indexColumnValue, $operandValue2])) {
-                    if ($usingPrimaryIndex) {
-                        $indexData[] = $row;
-                    } else {
-                        $indexData = array_merge($indexData, $row);
+            }
+
+            return $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                $usingPrimaryIndex, $schema, $itStart, $itEnd, $skipStart, $skipEnd,
+                $itLimit, $offsetLimitCount, $field
+            ) {
+                $indexData = [];
+                $skipFirst = false;
+                while (($result = $index->rawCommand(
+                    'pkhscanrange',
+                    $usingPrimaryIndex ? $index->_prefix($schema) : $index->_prefix($schema . '.' . $field),
+                    $itStart,
+                    $itEnd,
+                    'MATCH',
+                    '*',
+                    'LIMIT',
+                    $itLimit
+                )) && isset($result[1])) {
+                    foreach ($result[1] as $key => $data) {
+                        if ($skipFirst && in_array($key, [0, 1])) {
+                            continue;
+                        }
+
+                        if ($key % 2 != 0) {
+                            if ($usingPrimaryIndex) {
+                                $indexData[] = json_decode($data, true);
+                            } else {
+                                $indexData = array_merge($indexData, json_decode($data, true));
+                            }
+                        } else {
+                            $itStart = $data;
+                        }
                     }
-                    $matched = true;
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+
+                    $resultCnt = count($result[1]);
+
+                    if ($skipFirst) {
+                        if ($resultCnt <= 2) {
+                            break;
+                        }
+                    } else {
+                        if ($resultCnt <= 0) {
                             break;
                         }
                     }
-                } else {
-                    if ($matched && ($conditionOperator === '=')) {
-                        break;
+
+                    if (($resultCnt > 1) && (!$skipFirst)) {
+                        $skipFirst = true;
                     }
-                }
-            }
-            return $indexData;
-        } elseif ($operandType1 === 'const' && $operandType2 === 'colref') {
-            $usingPrimaryIndex = false;
-            $index = $this->openBtree($schema . '.' . $operandValue2);
-            if ($index === false) {
-                $usingPrimaryIndex = true;
-                $index = $this->openBtree($schema);
-            }
-            $indexData = [];
-            $matched = false;
-            $nextIt = new \LevelDBIterator($index);
-            if (!$usingPrimaryIndex) {
-                if ($conditionOperator === '=') {
-                    if ($index->get($operandValue1) !== false) {
-                        $nextIt->seek($operandValue1);
-                    }
-                }
-            }
-            for (; $nextIt->valid(); $nextIt->next()) {
-                $row = json_decode($nextIt->current(), true);
-                if ($usingPrimaryIndex) {
-                    if (!array_key_exists($operandValue2, $row)) {
-                        break;
-                    }
-                    $indexColumnValue = $row[$operandValue2];
-                } else {
-                    $indexColumnValue = $nextIt->key();
-                }
-                if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$indexColumnValue, $operandValue1])) {
-                    if ($usingPrimaryIndex) {
-                        $indexData[] = $row;
-                    } else {
-                        $indexData = array_merge($indexData, $row);
-                    }
-                    $matched = true;
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+
+                    if (!is_null($offsetLimitCount)) {
+                        if (count($indexData) >= $offsetLimitCount) {
                             break;
                         }
                     }
-                } else {
-                    if ($matched && ($conditionOperator === '=')) {
-                        break;
-                    }
                 }
-            }
-            return $indexData;
+
+                if ($skipStart) {
+                    array_shift($indexData);
+                }
+                if ($skipEnd) {
+                    array_pop($indexData);
+                }
+
+                return array_values($indexData);
+            });
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
                 return $this->fetchAllPrimaryIndexData($schema);
@@ -333,10 +400,16 @@ class Pika extends AbstractStorage
         }
     }
 
+    /**
+     * @param $schema
+     * @param Condition $condition
+     * @param $limit
+     * @param $indexSuggestions
+     * @return array|mixed
+     * @throws \Throwable
+     */
     protected function filterBetweenCondition($schema, Condition $condition, $limit, $indexSuggestions)
     {
-        $operatorHandler = new OperatorHandler();
-        $conditionOperator = $condition->getOperator();
         $operands = $condition->getOperands();
 
         $operandValue1 = $operands[0]->getValue();
@@ -379,44 +452,94 @@ class Pika extends AbstractStorage
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
             }
-            $indexData = [];
-            $nextIt = new \LevelDBIterator($index);
-            for (; $nextIt->valid(); $nextIt->next()) {
-                $row = json_decode($nextIt->current(), true);
-                if ($usingPrimaryIndex) {
-                    if (!array_key_exists($operandValue1, $row)) {
-                        break;
+            $itStart = '';
+            $itEnd = '';
+            $itLimit = 100;
+            $offset = null;
+            $limitCount = null;
+            $offsetLimitCount = null;
+            if (!is_null($limit)) {
+                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                $itLimit = $limitCount = $limit['rowcount'];
+                $offsetLimitCount = $offset + $limitCount;
+            }
+
+            if (!$usingPrimaryIndex) {
+                $itStart = $operandValue2;
+                $itEnd = $operandValue3;
+            }
+
+            return $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1
+            ) {
+                $indexData = [];
+                $skipFirst = false;
+                while (($result = $index->rawCommand(
+                        'pkhscanrange',
+                        $usingPrimaryIndex ?
+                            $index->_prefix($schema) :
+                            $index->_prefix($schema . '.' . $operandValue1),
+                        $itStart,
+                        $itEnd,
+                        'MATCH',
+                        '*',
+                        'LIMIT',
+                        $itLimit
+                    )) && isset($result[1])) {
+                    foreach ($result[1] as $key => $data) {
+                        if ($skipFirst && in_array($key, [0, 1])) {
+                            continue;
+                        }
+
+                        if ($key % 2 != 0) {
+                            if ($usingPrimaryIndex) {
+                                $indexData[] = json_decode($data, true);
+                            } else {
+                                $indexData = array_merge($indexData, json_decode($data, true));
+                            }
+                        } else {
+                            $itStart = $data;
+                        }
                     }
-                    $indexColumnValue = $row[$operandValue1];
-                } else {
-                    $indexColumnValue = $nextIt->key();
-                }
-                if ($operatorHandler->calculateOperatorExpr(
-                    $conditionOperator,
-                    ...[$indexColumnValue, $operandValue2, $operandValue3]
-                )) {
-                    if ($usingPrimaryIndex) {
-                        $indexData[] = $row;
+
+                    $resultCnt = count($result[1]);
+
+                    if ($skipFirst) {
+                        if ($resultCnt <= 2) {
+                            break;
+                        }
                     } else {
-                        $indexData = array_merge($indexData, $row);
+                        if ($resultCnt <= 0) {
+                            break;
+                        }
                     }
-                    if (!is_null($limit)) {
-                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                        $limitCount = $limit['rowcount'];
-                        if (count($indexData) === ($offset + $limitCount)) {
+
+                    if (($resultCnt > 1) && (!$skipFirst)) {
+                        $skipFirst = true;
+                    }
+
+                    if (!is_null($offsetLimitCount)) {
+                        if (count($indexData) >= $offsetLimitCount) {
                             break;
                         }
                     }
                 }
-            }
-            return $indexData;
+
+                return array_values($indexData);
+            });
         } else {
             return [];
         }
-
-        //todo support more situations
     }
 
+    /**
+     * @param $schema
+     * @param Condition $condition
+     * @param $limit
+     * @param $indexSuggestions
+     * @return array|mixed
+     * @throws \Throwable
+     */
     protected function filterCondition($schema, Condition $condition, $limit, $indexSuggestions)
     {
         $conditionOperator = $condition->getOperator();
@@ -431,6 +554,14 @@ class Pika extends AbstractStorage
         //todo support more operators
     }
 
+    /**
+     * @param $schema
+     * @param ConditionTree $conditionTree
+     * @param $limit
+     * @param $indexSuggestions
+     * @return array
+     * @throws \Throwable
+     */
     protected function filterConditionTree($schema, ConditionTree $conditionTree, $limit, $indexSuggestions)
     {
         $result = [];
@@ -465,6 +596,7 @@ class Pika extends AbstractStorage
      * @param $limit
      * @param $indexSuggestions
      * @return array
+     * @throws \Throwable
      */
     protected function conditionFilter($schema, $condition, $limit, $indexSuggestions)
     {

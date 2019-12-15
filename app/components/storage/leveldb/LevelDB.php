@@ -385,8 +385,6 @@ class LevelDB extends AbstractStorage
         } else {
             return [];
         }
-
-        //todo support more situations
     }
 
     protected function filterCondition($schema, Condition $condition, $limit, $indexSuggestions)

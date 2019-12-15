@@ -7,6 +7,7 @@ use App\components\optimizers\RulesBasedOptimizer;
 use App\components\Parser;
 use App\components\plans\Plan;
 use App\components\storage\leveldb\LevelDB;
+use App\components\storage\pika\Pika;
 use SwFwLess\components\http\Response;
 use SwFwLess\facades\Log;
 use SwFwLess\facades\RedisPool;
@@ -282,33 +283,34 @@ class QueryService extends BaseService
 //        return;
 
 
-        $index = RedisPool::pick('pika');
-        $result = $index->rawCommand(
-            'pkhscanrange',
-            $index->_prefix('test1'),
-            '',
-            '',
-            'MATCH',
-            '*',
-            'LIMIT',
-            100
-        );
-        foreach ($result[1] as $key => $data) {
-            if ($key % 2 != 0) {
-                var_dump($data);
-            }
-        }
-        RedisPool::release($index);
-        return [
-            'code' => 0,
-            'msg' => 'ok',
-            'data' => $result,
-        ];
+//        $index = RedisPool::pick('pika');
+//        $result = $index->rawCommand(
+//            'pkhscanrange',
+//            $index->_prefix('test1'),
+//            '',
+//            '',
+//            'MATCH',
+//            '*',
+//            'LIMIT',
+//            100
+//        );
+//        foreach ($result[1] as $key => $data) {
+//            if ($key % 2 != 0) {
+//                var_dump($data);
+//            }
+//        }
+//        RedisPool::release($index);
+//        return [
+//            'code' => 0,
+//            'msg' => 'ok',
+//            'data' => $result,
+//        ];
 
         $start = microtime(true);
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql)->parseAst();
-        $plan = Plan::create($ast, LevelDB::create());
+//        $plan = Plan::create($ast, LevelDB::create());
+        $plan = Plan::create($ast, Pika::create());
         $plan = RulesBasedOptimizer::fromPlan($plan)->optimize();
         $plan = CostBasedOptimizer::fromPlan($plan)->optimize();
         $resultSet = $plan->execute();

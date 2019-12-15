@@ -36,18 +36,20 @@ class RulesBasedOptimizer
 
     protected function setStorageGetLimit()
     {
+        //todo bugfix 排除join、order、group的情况
+
         /** @var QueryPlan $queryPlan */
-        $queryPlan = $this->plan->getExecutePlan();
-        $condition = $queryPlan->getCondition();
-        if (is_null($condition)) {
-            return;
-        }
-        $limit = $queryPlan->getLimit();
-        if (is_null($limit)) {
-            return;
-        }
-        if ($condition instanceof Condition) {
-            $queryPlan->setStorageGetLimit($limit);
-        }
+//        $queryPlan = $this->plan->getExecutePlan();
+//        $condition = $queryPlan->getCondition();
+//        if (is_null($condition)) {
+//            return;
+//        }
+//        $limit = $queryPlan->getLimit();
+//        if (is_null($limit)) {
+//            return;
+//        }
+//        if ($condition instanceof Condition) {
+//            $queryPlan->setStorageGetLimit($limit);
+//        }
     }
 }
