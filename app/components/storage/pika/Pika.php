@@ -282,8 +282,15 @@ class Pika extends AbstractStorage
                 $conditionValue = $operandValue1;
             }
 
+            $index = false;
             $usingPrimaryIndex = false;
-            $index = $this->openBtree($schema . '.' . $field);
+            $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
+            if (!is_null($suggestIndex)) {
+                $index = $this->openBtree($schema . '.' . $field);
+            }
+            if ($index === false) {
+                $index = $this->openBtree($schema . '.' . $field);
+            }
             if ($index === false) {
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);

@@ -1055,12 +1055,12 @@ class QueryPlan
     /**
      * @param $schema
      * @param $column
-     * @param $indexName
+     * @param $indexInfo
      * @return $this
      */
-    public function setOneIndexSuggestion($schema, $column, $indexName): self
+    public function setOneIndexSuggestion($schema, $column, $indexInfo): self
     {
-        $this->indexSuggestions[$schema][$column] = $indexName;
+        $this->indexSuggestions[$schema][$column] = $indexInfo;
         return $this;
     }
 }
