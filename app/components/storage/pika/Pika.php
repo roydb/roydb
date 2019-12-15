@@ -283,20 +283,26 @@ class Pika extends AbstractStorage
             }
 
             $index = false;
+            $indexName = null;
             $usingPrimaryIndex = false;
             $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
             if (!is_null($suggestIndex)) {
                 $index = $this->openBtree($suggestIndex['indexName']);
                 if ($index !== false) {
+                    $indexName = $suggestIndex['indexName'];
                     $usingPrimaryIndex = $suggestIndex['primaryIndex'];
                 }
             }
             if ($index === false) {
                 $index = $this->openBtree($schema . '.' . $field);
+                if ($index !== false) {
+                    $indexName = $schema . '.' . $field;
+                }
             }
             if ($index === false) {
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
+                $indexName = $schema;
             }
             $itStart = '';
             $itEnd = '';
@@ -337,13 +343,13 @@ class Pika extends AbstractStorage
 
             return $this->safeUseIndex($index, function (RedisWrapper $index) use (
                 $usingPrimaryIndex, $schema, $itStart, $itEnd, $skipStart, $skipEnd,
-                $itLimit, $offsetLimitCount, $field
+                $itLimit, $offsetLimitCount, $field, $indexName
             ) {
                 $indexData = [];
                 $skipFirst = false;
                 while (($result = $index->rawCommand(
                     'pkhscanrange',
-                    $usingPrimaryIndex ? $index->_prefix($schema) : $index->_prefix($schema . '.' . $field),
+                    $index->_prefix($indexName),
                     $itStart,
                     $itEnd,
                     'MATCH',
@@ -458,19 +464,25 @@ class Pika extends AbstractStorage
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
             $index = false;
             $usingPrimaryIndex = false;
+            $indexName = null;
             $suggestIndex = $indexSuggestions[$schema][$operandValue1] ?? null;
             if (!is_null($suggestIndex)) {
                 $index = $this->openBtree($suggestIndex['indexName']);
                 if ($index !== false) {
+                    $indexName = $suggestIndex['indexName'];
                     $usingPrimaryIndex = $suggestIndex['primaryIndex'];
                 }
             }
             if ($index === false) {
                 $index = $this->openBtree($schema . '.' . $operandValue1);
+                if ($index !== false) {
+                    $indexName = $schema . '.' . $operandValue1;
+                }
             }
             if ($index === false) {
                 $usingPrimaryIndex = true;
                 $index = $this->openBtree($schema);
+                $indexName = $schema;
             }
             $itStart = '';
             $itEnd = '';
@@ -490,15 +502,14 @@ class Pika extends AbstractStorage
             }
 
             return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1
+                $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
+                $indexName
             ) {
                 $indexData = [];
                 $skipFirst = false;
                 while (($result = $index->rawCommand(
                         'pkhscanrange',
-                        $usingPrimaryIndex ?
-                            $index->_prefix($schema) :
-                            $index->_prefix($schema . '.' . $operandValue1),
+                        $index->_prefix($indexName),
                         $itStart,
                         $itEnd,
                         'MATCH',
