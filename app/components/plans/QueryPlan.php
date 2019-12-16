@@ -59,8 +59,8 @@ class QueryPlan
 
     //Optimization properties
     protected $storageGetLimit;
-
     protected $indexSuggestions;
+    protected $nativeOrder;
 
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
@@ -810,6 +810,10 @@ class QueryPlan
             return $resultSet;
         }
 
+        if ($this->nativeOrder === true) {
+            return $resultSet;
+        }
+
         $sortFuncParams = [];
 
         foreach ($this->orders as $order) {
@@ -1061,6 +1065,16 @@ class QueryPlan
     public function setOneIndexSuggestion($schema, $column, $indexInfo): self
     {
         $this->indexSuggestions[$schema][$column] = $indexInfo;
+        return $this;
+    }
+
+    /**
+     * @param bool $nativeOrder
+     * @return $this
+     */
+    public function setNativeOrder(bool $nativeOrder): self
+    {
+        $this->nativeOrder = $nativeOrder;
         return $this;
     }
 }

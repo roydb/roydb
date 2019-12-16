@@ -27,8 +27,6 @@ class RulesBasedOptimizer
             return $this->plan;
         }
 
-        //todo
-
         $this->setStorageGetLimit();
         $this->setNativeOrderBy();
 
@@ -43,10 +41,6 @@ class RulesBasedOptimizer
         if (is_null($limit)) {
             return;
         }
-        $condition = $queryPlan->getCondition();
-        if (is_null($condition)) {
-            return;
-        }
         if (!is_null($queryPlan->getOrders())) {
             return;
         }
@@ -56,13 +50,35 @@ class RulesBasedOptimizer
         if (count($queryPlan->getSchemas()) > 0) {
             return;
         }
-        if ($condition instanceof Condition) {
+        $condition = $queryPlan->getCondition();
+        if (is_null($condition)) {
             $queryPlan->setStorageGetLimit($limit);
+        } else {
+            if ($condition instanceof Condition) {
+                $queryPlan->setStorageGetLimit($limit);
+            }
         }
     }
 
     protected function setNativeOrderBy()
     {
-        //todo
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+        $orders = $queryPlan->getOrders();
+        if (is_null($orders)) {
+            return;
+        }
+        if (count($orders) > 1) {
+            return;
+        }
+        $condition = $queryPlan->getCondition();
+        $order = $orders[0];
+        if ($order->getType() === 'colref') {
+            if ($order->getValue() === 'id' && $order->getDirection() === 'ASC') { //todo fetch primary key from schema
+                if (is_null($condition)) {
+                    $queryPlan->setNativeOrder(true);
+                }
+            }
+        }
     }
 }

@@ -28,8 +28,6 @@ class CostBasedOptimizer
             return $this->plan;
         }
 
-        //todo
-
         $this->setIndexSuggestion();
 
         return $this->plan;
