@@ -73,39 +73,23 @@ class CostBasedOptimizer
 
             foreach ($columnNames as $columnName) {
                 if ($columnName === 'id') { //todo fetch primary key from schema meta data
-                    $queryPlan->setOneIndexSuggestion($schema, $columnName, $schema);
+                    $queryPlan->setOneIndexSuggestion(
+                        $schema,
+                        $columnName,
+                        [
+                            'indexName' => $schema,
+                            'primaryIndex' => true,
+                        ]
+                    );
                 } else {
-                    if ($condition->getOperator() === '=') {
-                        $queryPlan->setOneIndexSuggestion(
-                            $schema,
-                            $columnName,
-                            [
-                                'indexName' => $schema . '.' . $columnName,
-                                'primaryIndex' => false,
-                            ]
-                        );
-                    } else {
-                        $indexDuplicated = 0.5; //todo fetch from meta data
-                        if ($indexDuplicated >= 0.5) {
-                            $queryPlan->setOneIndexSuggestion(
-                                $schema,
-                                $columnName,
-                                [
-                                    'indexName' => $schema . '.' . $columnName,
-                                    'primaryIndex' => false,
-                                ]
-                            );
-                        } else {
-                            $queryPlan->setOneIndexSuggestion(
-                                $schema,
-                                $columnName,
-                                [
-                                    'indexName' => $schema,
-                                    'primaryIndex' => true,
-                                ]
-                            );
-                        }
-                    }
+                    $queryPlan->setOneIndexSuggestion(
+                        $schema,
+                        $columnName,
+                        [
+                            'indexName' => $schema . '.' . $columnName,
+                            'primaryIndex' => false,
+                        ]
+                    );
                 }
             }
         }
