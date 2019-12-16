@@ -30,6 +30,7 @@ class RulesBasedOptimizer
         //todo
 
         $this->setStorageGetLimit();
+        $this->setNativeOrderBy();
 
         return $this->plan;
     }
@@ -58,5 +59,10 @@ class RulesBasedOptimizer
         if ($condition instanceof Condition) {
             $queryPlan->setStorageGetLimit($limit);
         }
+    }
+
+    protected function setNativeOrderBy()
+    {
+        //todo
     }
 }
