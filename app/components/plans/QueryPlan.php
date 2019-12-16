@@ -280,6 +280,7 @@ class QueryPlan
 
     protected function joinResultSet($resultSet, $schema)
     {
+        //todo segment join
         $joinHandler = self::JOIN_HANDLERS[$schema['join_type']];
         return $this->{$joinHandler}($resultSet, $schema);
     }
