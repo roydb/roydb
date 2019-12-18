@@ -286,6 +286,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
+                    //todo 有别的条件的时候，避免获取全表的数据
                     return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
