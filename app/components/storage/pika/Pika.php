@@ -58,7 +58,6 @@ class Pika extends AbstractStorage
      */
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
-        //todo $columns 应该是plan选择过的，因为某些字段不需要返回，但是查询条件可能需要用到
         return $this->conditionFilter($schema, $condition, $limit, $indexSuggestions);
     }
 
@@ -93,7 +92,6 @@ class Pika extends AbstractStorage
      */
     protected function fetchAllPrimaryIndexData($schema, $limit)
     {
-        //todo optimize for storage get limit
         $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
@@ -749,7 +747,6 @@ class Pika extends AbstractStorage
      */
     protected function conditionFilter($schema, $condition, $limit, $indexSuggestions)
     {
-        //todo choose idx using plan, maybe using optimizer ?
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
                 $indexData = $this->filterCondition($schema, $condition, $limit, $indexSuggestions);
