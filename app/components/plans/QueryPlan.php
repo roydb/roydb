@@ -335,26 +335,32 @@ class QueryPlan
 
         foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
-                $conditionTree = new ConditionTree();
-                $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->extractWhereConditions();
-                if ($whereCondition instanceof Condition) {
-                    $this->fillConditionWithResultSet($leftRow, $whereCondition);
-                } else {
-                    $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
-                }
-                $conditionTree->addSubConditions($whereCondition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
                 } else {
                     $this->fillConditionTreeWithResultSet($leftRow, $onCondition);
                 }
-                $conditionTree->addSubConditions($onCondition);
+
+                $whereCondition = $this->extractWhereConditions();
+                if (!is_null($whereCondition)) {
+                    if ($whereCondition instanceof Condition) {
+                        $this->fillConditionWithResultSet($leftRow, $whereCondition);
+                    } else {
+                        $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
+                    }
+                    $conditionTree = new ConditionTree();
+                    $conditionTree->setLogicOperator('and');
+                    $conditionTree->addSubConditions($whereCondition);
+                    $conditionTree->addSubConditions($onCondition);
+                    $rightResultSetCondition = $conditionTree;
+                } else {
+                    $rightResultSetCondition = $onCondition;
+                }
 
                 $rightResultSet = $this->storage->get(
                     $schema['table'],
-                    $conditionTree,
+                    $rightResultSetCondition,
                     $this->storageGetLimit,
                     $this->indexSuggestions
                 );

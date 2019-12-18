@@ -399,7 +399,7 @@ class Pika extends AbstractStorage
             return $this->safeUseIndex($index, function (RedisWrapper $index) use (
                 $usingPrimaryIndex, $itStart, $itEnd, $skipStart, $skipEnd,
                 $itLimit, $offsetLimitCount, $indexName, $skipValues, $operatorHandler,
-                $conditionOperator, $operandValue1, $operandValue2
+                $conditionOperator, $field, $conditionValue
             ) {
                 $indexData = [];
                 $skipFirst = false;
@@ -420,11 +420,12 @@ class Pika extends AbstractStorage
 
                         if ($key % 2 != 0) {
                             if ($usingPrimaryIndex) {
+                                $arrData = json_decode($data, true);
                                 if ($operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
-                                    ...[$operandValue1, $operandValue2]
+                                    ...[$arrData[$field], $conditionValue]
                                 )) {
-                                    $indexData[] = json_decode($data, true);
+                                    $indexData[] = $arrData;
                                 }
                             } else {
                                 $indexData = array_merge($indexData, json_decode($data, true));
@@ -620,11 +621,12 @@ class Pika extends AbstractStorage
 
                         if ($key % 2 != 0) {
                             if ($usingPrimaryIndex) {
+                                $arrData = json_decode($data, true);
                                 if ($operatorHandler->calculateOperatorExpr(
                                     'between',
-                                    ...[$operandValue1, $operandValue2, $operandValue3]
+                                    ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
                                 )) {
-                                    $indexData[] = json_decode($data, true);
+                                    $indexData[] = $arrData;
                                 }
                             } else {
                                 $indexData = array_merge($indexData, json_decode($data, true));
