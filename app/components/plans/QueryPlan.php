@@ -329,8 +329,6 @@ class QueryPlan
 
     protected function innerJoinResultSet($leftResultSet, $schema)
     {
-        $leftJoinHashMap = [];
-
         $joinedResultSet = [];
 
         foreach ($leftResultSet as $leftRow) {
@@ -392,26 +390,32 @@ class QueryPlan
             $joined = false;
 
             if ($schema['ref_type'] === 'ON') {
-                $conditionTree = new ConditionTree();
-                $conditionTree->setLogicOperator('and');
-                $whereCondition = $this->extractWhereConditions();
-                if ($whereCondition instanceof Condition) {
-                    $this->fillConditionWithResultSet($leftRow, $whereCondition);
-                } else {
-                    $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
-                }
-                $conditionTree->addSubConditions($whereCondition);
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
                 } else {
                     $this->fillConditionTreeWithResultSet($leftRow, $onCondition);
                 }
-                $conditionTree->addSubConditions($onCondition);
+
+                $whereCondition = $this->extractWhereConditions();
+                if (!is_null($whereCondition)) {
+                    if ($whereCondition instanceof Condition) {
+                        $this->fillConditionWithResultSet($leftRow, $whereCondition);
+                    } else {
+                        $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
+                    }
+                    $conditionTree = new ConditionTree();
+                    $conditionTree->setLogicOperator('and');
+                    $conditionTree->addSubConditions($whereCondition);
+                    $conditionTree->addSubConditions($onCondition);
+                    $rightResultSetCondition = $conditionTree;
+                } else {
+                    $rightResultSetCondition = $onCondition;
+                }
 
                 $rightResultSet = $this->storage->get(
                     $schemaTable,
-                    $conditionTree,
+                    $rightResultSetCondition,
                     $this->storageGetLimit,
                     $this->indexSuggestions
                 );
@@ -447,13 +451,15 @@ class QueryPlan
         $filledWithLeftResult = false;
         if (count($leftResultSet) > 0) {
             $whereCondition = $this->extractWhereConditions();
-            if ($whereCondition instanceof Condition) {
-                if ($this->fillConditionWithResultSet($leftResultSet[0], $whereCondition)) {
-                    $filledWithLeftResult = true;
-                }
-            } else {
-                if ($this->fillConditionTreeWithResultSet($leftResultSet[0], $whereCondition)) {
-                    $filledWithLeftResult = true;
+            if (!is_null($whereCondition)) {
+                if ($whereCondition instanceof Condition) {
+                    if ($this->fillConditionWithResultSet($leftResultSet[0], $whereCondition)) {
+                        $filledWithLeftResult = true;
+                    }
+                } else {
+                    if ($this->fillConditionTreeWithResultSet($leftResultSet[0], $whereCondition)) {
+                        $filledWithLeftResult = true;
+                    }
                 }
             }
         }
