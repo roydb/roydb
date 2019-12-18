@@ -286,7 +286,8 @@ class Pika extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    return [];
+                    //todo optimizer 或者conditionFilter优化，避免获取所有数据
+                    return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
         }
@@ -296,7 +297,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return [];
+                    return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
         }
@@ -510,7 +511,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    return [];
+                    return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
         }
@@ -521,7 +522,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return [];
+                    return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
         }
@@ -532,7 +533,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue3, '.')) {
                 list($operandSchema3, $operandValue3) = explode('.', $operandValue3);
                 if ($operandSchema3 !== $schema) {
-                    return [];
+                    return $this->fetchAllPrimaryIndexData($schema, $limit);
                 }
             }
         }
