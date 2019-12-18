@@ -286,8 +286,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    //todo 有别的条件的时候，避免获取全表的数据
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
+                    return [];
                 }
             }
         }
@@ -297,7 +296,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
+                    return [];
                 }
             }
         }
@@ -511,7 +510,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue1, '.')) {
                 list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
                 if ($operandSchema1 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
+                    return [];
                 }
             }
         }
@@ -522,7 +521,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue2, '.')) {
                 list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
                 if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
+                    return [];
                 }
             }
         }
@@ -533,7 +532,7 @@ class Pika extends AbstractStorage
             if (strpos($operandValue3, '.')) {
                 list($operandSchema3, $operandValue3) = explode('.', $operandValue3);
                 if ($operandSchema3 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
+                    return [];
                 }
             }
         }
