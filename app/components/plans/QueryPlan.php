@@ -283,6 +283,7 @@ class QueryPlan
 
     protected function joinResultSet($resultSet, $schema)
     {
+        //todo 优化，关联条件组合成or条件组，hash join
         $joinHandler = self::JOIN_HANDLERS[$schema['join_type']];
         return $this->{$joinHandler}($resultSet, $schema);
     }
@@ -328,6 +329,8 @@ class QueryPlan
 
     protected function innerJoinResultSet($leftResultSet, $schema)
     {
+        $leftJoinHashMap = [];
+
         $joinedResultSet = [];
 
         foreach ($leftResultSet as $leftRow) {
