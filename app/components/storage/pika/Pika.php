@@ -431,7 +431,7 @@ class Pika extends AbstractStorage
                 }
             }
 
-            if (!$usingPrimaryIndex) {
+            if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
                 if ($conditionOperator === '=') {
                     if ($isNot) {
                         $skipValues[] = $conditionValue;
@@ -495,7 +495,7 @@ class Pika extends AbstractStorage
                         if ($key % 2 != 0) {
                             if ($usingPrimaryIndex) {
                                 $arrData = json_decode($data, true);
-                                if ($operatorHandler->calculateOperatorExpr(
+                                if (($field === 'id') || $operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
                                     ...[$arrData[$field], $conditionValue]
                                 )) {
@@ -506,7 +506,7 @@ class Pika extends AbstractStorage
                             }
                         } else {
                             $itStart = $data;
-                            if (!$usingPrimaryIndex) {
+                            if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
                                 if (in_array($data, $skipValues)) {
                                     continue 2;
                                 }
@@ -637,7 +637,7 @@ class Pika extends AbstractStorage
                 $offsetLimitCount = $offset + $limitCount;
             }
 
-            if (!$usingPrimaryIndex) {
+            if ((!$usingPrimaryIndex) || ($operandValue1 === 'id')) { //todo fetch primary key from schema meta data
                 if ($isNot) {
                     $splitConditionTree = new ConditionTree();
                     $splitConditionTree->setLogicOperator('and')
@@ -687,7 +687,7 @@ class Pika extends AbstractStorage
                         if ($key % 2 != 0) {
                             if ($usingPrimaryIndex) {
                                 $arrData = json_decode($data, true);
-                                if ($operatorHandler->calculateOperatorExpr(
+                                if (($operandValue1 === 'id') || $operatorHandler->calculateOperatorExpr( //todo fetch primary key from schema meta data
                                     'between',
                                     ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
                                 )) {
