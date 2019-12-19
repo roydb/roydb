@@ -444,31 +444,12 @@ class QueryPlan
                 }
             }
 
-            if ($operand1Type === 'colref') {
-                if (!is_null($operand1Schema)) {
-                    if ($operand1Schema !== $schema) {
-                        $hashJoinField = $operand1Value;
-                    }
-                } else {
-                    if (!is_null($operand2Schema)) {
-                        if ($operand2Schema === $schema) {
-                            $hashJoinField = $operand1Value;
-                        }
-                    }
-                }
-            }
-
-            if ($operand2Type === 'colref') {
-                if (!is_null($operand2Schema)) {
-                    if ($operand2Schema !== $schema) {
-                        $hashJoinField = $operand2Value;
-                    }
-                } else {
-                    if (!is_null($operand1Schema)) {
-                        if ($operand1Schema === $schema) {
-                            $hashJoinField = $operand2Value;
-                        }
-                    }
+            $schemaTable = $schema['table'];
+            if ((!is_null($operand1Schema)) && (!is_null($operand2Schema))) {
+                if (($operand1Schema === $schemaTable) && ($operand2Schema !== $schemaTable)) {
+                    $hashJoinField = $operand2Value;
+                } elseif (($operand1Schema !== $schemaTable) && ($operand2Schema === $schemaTable)) {
+                    $hashJoinField = $operand1Value;
                 }
             }
 
