@@ -332,6 +332,8 @@ class QueryPlan
     {
         $joinedResultSet = [];
 
+        $rightResultSetConditions = [];
+
         foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
                 $onCondition = $this->extractConditions($schema['ref_clause']);
@@ -357,17 +359,25 @@ class QueryPlan
                     $rightResultSetCondition = $onCondition;
                 }
 
-                $rightResultSet = $this->storage->get(
-                    $schema['table'],
-                    $rightResultSetCondition,
-                    $this->storageGetLimit,
-                    $this->indexSuggestions
-                );
+                $rightResultSetConditions[] = $rightResultSetCondition;
+            }
+        }
 
-                foreach ($rightResultSet as $rightRow) {
-                    if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
-                        $joinedResultSet[] = $leftRow + $rightRow;
-                    }
+        $rightResultSetConditionTree = new ConditionTree();
+        $rightResultSetConditionTree->setLogicOperator('or')
+            ->setSubConditions($rightResultSetConditions);
+
+        $rightResultSet = $this->storage->get(
+            $schema['table'],
+            $rightResultSetConditionTree,
+            $this->storageGetLimit,
+            $this->indexSuggestions
+        );
+
+        foreach ($leftResultSet as $leftRow) {
+            foreach ($rightResultSet as $rightRow) {
+                if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
+                    $joinedResultSet[] = $leftRow + $rightRow;
                 }
             }
         }
