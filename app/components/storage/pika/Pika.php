@@ -4,6 +4,7 @@ namespace App\components\storage\pika;
 
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
+use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 use SwFwLess\components\redis\RedisWrapper;
@@ -48,7 +49,7 @@ class Pika extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
-    protected function filterConditionWithSchema($schema, $condition)
+    protected function filterConditionWithSchema($schema, $condition, $parentOperator = null)
     {
         if (is_null($condition)) {
             return null;
@@ -64,18 +65,48 @@ class Pika extends AbstractStorage
                     if (strpos($operandValue, '.')) {
                         list($operandSchema, $operandValue) = explode('.', $operandValue);
                         if ($operandSchema !== $schema) {
-                            return null;
+                            if (is_null($parentOperator)) {
+                                return null;
+                            } elseif ($parentOperator === 'and') {
+                                return null;
+                            } elseif ($parentOperator === 'not') {
+                                $filteredConditionTree = new ConditionTree();
+                                $filteredConditionTree->setLogicOperator('not');
+                                $filteredCondition = (new Condition())->setOperator('=')
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue(1)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue(1)
+                                    );
+                                $filteredConditionTree->addSubConditions($filteredCondition);
+                                return $filteredConditionTree;
+                            } else {
+                                return (new Condition())->setOperator('=')
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue(1)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue(1)
+                                    );
+                            }
                         }
                     }
                 }
             }
+
+            return $condition;
         }
 
         if ($condition instanceof ConditionTree) {
             $subConditions = $condition->getSubConditions();
 
             foreach ($subConditions as $i => $subCondition) {
-                if (is_null($this->filterConditionWithSchema($schema, $subCondition))) {
+                if (is_null($this->filterConditionWithSchema($schema, $subCondition, $condition->getLogicOperator()))) {
                     unset($subConditions[$i]);
                 }
             }
