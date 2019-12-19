@@ -260,9 +260,6 @@ class Pika extends AbstractStorage
                 if (!array_key_exists($operandValue, $row)) {
                     $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
                 }
-                if (!array_key_exists($operandValue, $row)) {
-                    return true;
-                }
                 $operandValues[] = $row[$operandValue];
             } else {
                 $operandValues[] = $operandValue;
@@ -335,8 +332,18 @@ class Pika extends AbstractStorage
         $operands = $condition->getOperands();
         $operandValue1 = $operands[0]->getValue();
         $operandType1 = $operands[0]->getType();
+        if ($operandType1 === 'colref') {
+            if (strpos($operandValue1, '.')) {
+                list(, $operandValue1) = explode('.', $operandValue1);
+            }
+        }
         $operandValue2 = $operands[1]->getValue();
         $operandType2 = $operands[1]->getType();
+        if ($operandType2 === 'colref') {
+            if (strpos($operandValue2, '.')) {
+                list(, $operandValue2) = explode('.', $operandValue2);
+            }
+        }
 
         if ((($operandType1 === 'colref') && ($operandType2 === 'const')) ||
             (($operandType1 === 'const') && ($operandType2 === 'colref'))
@@ -543,10 +550,27 @@ class Pika extends AbstractStorage
 
         $operandValue1 = $operands[0]->getValue();
         $operandType1 = $operands[0]->getType();
+        if ($operandType1 === 'colref') {
+            if (strpos($operandValue1, '.')) {
+                list(, $operandValue1) = explode('.', $operandValue1);
+            }
+        }
+
         $operandValue2 = $operands[1]->getValue();
         $operandType2 = $operands[1]->getType();
+        if ($operandType2 === 'colref') {
+            if (strpos($operandValue2, '.')) {
+                list(, $operandValue2) = explode('.', $operandValue2);
+            }
+        }
+
         $operandValue3 = $operands[2]->getValue();
         $operandType3 = $operands[2]->getType();
+        if ($operandType3 === 'colref') {
+            if (strpos($operandValue3, '.')) {
+                list(, $operandValue3) = explode('.', $operandValue3);
+            }
+        }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
             $index = false;

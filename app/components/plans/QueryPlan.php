@@ -248,16 +248,85 @@ class QueryPlan
     }
 
     /**
+     * @param $row
+     * @param Condition $condition
+     * @return bool
+     * @throws \Throwable
+     */
+    protected function filterConditionByIndexData($row, Condition $condition)
+    {
+        $operands = $condition->getOperands();
+
+        $operandValues = [];
+        foreach ($operands as $operand) {
+            $operandType = $operand->getType();
+            $operandValue = $operand->getValue();
+            if ($operandType === 'colref') {
+                if (strpos($operandValue, '.')) {
+                    list($operandSchema, $operandValue) = explode('.', $operandValue);
+                }
+                $operandValues[] = $row[$operandValue];
+            } else {
+                $operandValues[] = $operandValue;
+            }
+        }
+
+        return (new OperatorHandler())->calculateOperatorExpr($condition->getOperator(), ...$operandValues);
+    }
+
+    /**
+     * @param $row
+     * @param ConditionTree $conditionTree
+     * @return bool
+     * @throws \Throwable
+     */
+    protected function filterConditionTreeByIndexData($row, ConditionTree $conditionTree)
+    {
+        $subConditions = $conditionTree->getSubConditions();
+        $result = true;
+        foreach ($subConditions as $i => $subCondition) {
+            if ($subCondition instanceof Condition) {
+                $subResult = $this->filterConditionByIndexData($row, $subCondition);
+            } else {
+                $subResult = $this->filterConditionTreeByIndexData($row, $subCondition);
+            }
+            if ($i === 0) {
+                if ($conditionTree->getLogicOperator() === 'not') {
+                    $result = !$subResult;
+                } else {
+                    $result = $subResult;
+                }
+            } else {
+                switch ($conditionTree->getLogicOperator()) {
+                    case 'and':
+                        $result = ($result && $subResult);
+                        break;
+                    case 'or':
+                        $result = ($result || $subResult);
+                        break;
+                    case 'not':
+                        $result = ($result && (!$subResult));
+                        break;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * @return array|mixed
-     * @throws \Exception
+     * @throws \Throwable
      */
     public function execute()
     {
         $resultSet = [];
 
         if (!is_null($this->schemas)) {
+            $hasJoin = false;
             foreach ($this->schemas as $i => $schema) {
                 if ($i > 0) {
+                    $hasJoin = true;
                     $resultSet = $this->joinResultSet($resultSet, $schema);
                 } else {
                     $resultSet = $this->storage->get(
@@ -267,6 +336,22 @@ class QueryPlan
                         $this->indexSuggestions
                     );
                 }
+            }
+
+            if ($hasJoin) {
+                $whereCondition = $this->extractWhereConditions();
+                foreach ($resultSet as $i => $row) {
+                    if ($whereCondition instanceof ConditionTree) {
+                        if (!$this->filterConditionTreeByIndexData($row, $whereCondition)) {
+                            unset($resultSet[$i]);
+                        }
+                    } else {
+                        if (!$this->filterConditionByIndexData($row, $whereCondition)) {
+                            unset($resultSet[$i]);
+                        }
+                    }
+                }
+                $resultSet = array_values($resultSet);
             }
         } else {
             $resultSet[] = [];
@@ -374,9 +459,10 @@ class QueryPlan
             $this->indexSuggestions
         );
 
+        //todo hash join
         foreach ($leftResultSet as $leftRow) {
             foreach ($rightResultSet as $rightRow) {
-                if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
+                if ($this->joinConditionMatcher($leftRow, $rightRow, $this->extractConditions($schema['ref_clause']))) {
                     $joinedResultSet[] = $leftRow + $rightRow;
                 }
             }
@@ -397,9 +483,9 @@ class QueryPlan
             $emptyRightRow[$schemaColumn] = $emptyRightRow[$schemaTable . '.' . $schemaColumn] = null;
         }
 
-        foreach ($leftResultSet as $leftRow) {
-            $joined = false;
+        $rightResultSetConditions = [];
 
+        foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
@@ -424,18 +510,29 @@ class QueryPlan
                     $rightResultSetCondition = $onCondition;
                 }
 
-                $rightResultSet = $this->storage->get(
-                    $schemaTable,
-                    $rightResultSetCondition,
-                    $this->storageGetLimit,
-                    $this->indexSuggestions
-                );
+                $rightResultSetConditions[] = $rightResultSetCondition;
+            }
+        }
 
-                foreach ($rightResultSet as $rightRow) {
-                    if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
-                        $joinedResultSet[] = $leftRow + $rightRow;
-                        $joined = true;
-                    }
+        $rightResultSetConditionTree = new ConditionTree();
+        $rightResultSetConditionTree->setLogicOperator('or')
+            ->setSubConditions($rightResultSetConditions);
+
+        $rightResultSet = $this->storage->get(
+            $schemaTable,
+            $rightResultSetConditionTree,
+            $this->storageGetLimit,
+            $this->indexSuggestions
+        );
+
+        //todo hash join
+        foreach ($leftResultSet as $leftRow) {
+            $joined = false;
+
+            foreach ($rightResultSet as $rightRow) {
+                if ($this->joinConditionMatcher($leftRow, $rightRow, $this->extractConditions($schema['ref_clause']))) {
+                    $joinedResultSet[] = $leftRow + $rightRow;
+                    $joined = true;
                 }
             }
 
@@ -483,6 +580,8 @@ class QueryPlan
                 $this->indexSuggestions
             );
         } else {
+            $rightResultSetConditions = [];
+
             $rightResultSet = [];
             foreach ($leftResultSet as $leftRow) {
                 $whereCondition = $this->extractWhereConditions();
@@ -492,23 +591,22 @@ class QueryPlan
                     $this->fillConditionTreeWithResultSet($leftRow, $whereCondition);
                 }
 
-                $rightResultSet = array_merge($rightResultSet, $this->storage->get(
-                    $schemaTable,
-                    $whereCondition,
-                    $this->storageGetLimit,
-                    $this->indexSuggestions
-                ));
+                $rightResultSetConditions[] = $whereCondition;
             }
-            $idMap = [];
-            foreach ($rightResultSet as $i => $row) {
-                if (in_array($row['id'], $idMap)) {
-                    unset($rightResultSet[$i]);
-                } else {
-                    $idMap[] = $row['id'];
-                }
-            }
+
+            $rightResultSetConditionTree = new ConditionTree();
+            $rightResultSetConditionTree->setLogicOperator('or')
+                ->setSubConditions($rightResultSetConditions);
+
+            $rightResultSet = array_merge($rightResultSet, $this->storage->get(
+                $schemaTable,
+                $rightResultSetConditions,
+                $this->storageGetLimit,
+                $this->indexSuggestions
+            ));
         }
 
+        //todo hash join
         foreach ($rightResultSet as $rightRow) {
             $joined = false;
 
