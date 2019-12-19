@@ -7,6 +7,7 @@ use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
+use Co\Channel;
 use SwFwLess\components\redis\RedisWrapper;
 use SwFwLess\facades\RedisPool;
 
@@ -797,35 +798,48 @@ class Pika extends AbstractStorage
 
         $result = [];
 
-        foreach ($conditionTree->getSubConditions() as $i => $subCondition) {
-            if ($subCondition instanceof Condition) {
-                $subResult = $this->filterCondition($schema, $subCondition, $limit, $indexSuggestions, $isNot);
-            } else {
-                if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
-                    $subResult = [];
-                    foreach ($subCondition->getSubConditions() as $j => $subSubCondition) {
-                        if ($subSubCondition instanceof Condition) {
-                            $subResult = array_merge($subResult, $this->filterCondition(
-                                $schema,
-                                $subSubCondition,
-                                $limit,
-                                $indexSuggestions
-                            ));
-                        } else {
-                            $subResult = array_merge($subResult, $this->filterConditionTree(
-                                $schema,
-                                $subSubCondition,
-                                $limit,
-                                $indexSuggestions
-                            ));
-                        }
-                    }
-                } else {
-                    $subResult = $this->filterConditionTree($schema, $subCondition, $limit, $indexSuggestions);
-                }
-            }
+        $subConditions = $conditionTree->getSubConditions();
+        $subConditionCount = count($subConditions);
 
-            $result = array_merge($result, $subResult);
+        $channel = new Channel($subConditionCount);
+
+        foreach ($subConditions as $i => $subCondition) {
+            go(function () use (
+                $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel
+            ) {
+                if ($subCondition instanceof Condition) {
+                    $subResult = $this->filterCondition($schema, $subCondition, $limit, $indexSuggestions, $isNot);
+                } else {
+                    if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
+                        $subResult = [];
+                        foreach ($subCondition->getSubConditions() as $j => $subSubCondition) {
+                            if ($subSubCondition instanceof Condition) {
+                                $subResult = array_merge($subResult, $this->filterCondition(
+                                    $schema,
+                                    $subSubCondition,
+                                    $limit,
+                                    $indexSuggestions
+                                ));
+                            } else {
+                                $subResult = array_merge($subResult, $this->filterConditionTree(
+                                    $schema,
+                                    $subSubCondition,
+                                    $limit,
+                                    $indexSuggestions
+                                ));
+                            }
+                        }
+                    } else {
+                        $subResult = $this->filterConditionTree($schema, $subCondition, $limit, $indexSuggestions);
+                    }
+                }
+
+                $channel->push($subResult);
+            });
+        }
+
+        for ($i = 0; $i < $subConditionCount; ++$i) {
+            $result = array_merge($result, $channel->pop());
         }
 
         $idMap = [];
