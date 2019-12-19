@@ -801,7 +801,7 @@ class Pika extends AbstractStorage
             if ($subCondition instanceof Condition) {
                 $subResult = $this->filterCondition($schema, $subCondition, $limit, $indexSuggestions, $isNot);
             } else {
-                if ($subCondition->getLogicOperator() === 'not' && $isNot) {
+                if ($isNot && $subCondition->getLogicOperator() === 'not') {
                     $subResult = [];
                     foreach ($subCondition->getSubConditions() as $j => $subSubCondition) {
                         if ($subSubCondition instanceof Condition) {
