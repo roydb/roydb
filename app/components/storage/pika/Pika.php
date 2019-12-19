@@ -48,6 +48,58 @@ class Pika extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
+    protected function filterConditionWithSchema($schema, $condition)
+    {
+        if (is_null($condition)) {
+            return null;
+        }
+
+        if ($condition instanceof Condition) {
+            $operands = $condition->getOperands();
+
+            foreach ($operands as $operand) {
+                $operandType = $operand->getType();
+                $operandValue = $operand->getValue();
+                if ($operandType === 'colref') {
+                    if (strpos($operandValue, '.')) {
+                        list($operandSchema, $operandValue) = explode('.', $operandValue);
+                        if ($operandSchema !== $schema) {
+                            return null;
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($condition instanceof ConditionTree) {
+            $subConditions = $condition->getSubConditions();
+
+            foreach ($subConditions as $i => $subCondition) {
+                if (is_null($this->filterConditionWithSchema($schema, $subCondition))) {
+                    unset($subConditions[$i]);
+                }
+            }
+
+            $subConditions = array_values($subConditions);
+
+            if (count($subConditions) <= 0) {
+                return null;
+            }
+
+            if (count($subConditions) === 1) {
+                if ($condition->getLogicOperator() !== 'not') {
+                    return $condition->setSubConditions($subConditions);
+                } else {
+                    return $subConditions[0];
+                }
+            } else {
+                return $condition->setSubConditions($subConditions);
+            }
+        }
+
+        return null;
+    }
+
     /**
      * @param $schema
      * @param $condition
@@ -58,6 +110,7 @@ class Pika extends AbstractStorage
      */
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
+        $condition = $this->filterConditionWithSchema($schema, $condition);
         return $this->conditionFilter($schema, $condition, $limit, $indexSuggestions);
     }
 
@@ -282,25 +335,8 @@ class Pika extends AbstractStorage
         $operands = $condition->getOperands();
         $operandValue1 = $operands[0]->getValue();
         $operandType1 = $operands[0]->getType();
-        if ($operandType1 === 'colref') {
-            if (strpos($operandValue1, '.')) {
-                list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
-                if ($operandSchema1 !== $schema) {
-                    //todo optimizer 或者conditionFilter优化，避免获取所有数据
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
-                }
-            }
-        }
         $operandValue2 = $operands[1]->getValue();
         $operandType2 = $operands[1]->getType();
-        if ($operandType2 === 'colref') {
-            if (strpos($operandValue2, '.')) {
-                list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
-                if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
-                }
-            }
-        }
 
         if ((($operandType1 === 'colref') && ($operandType2 === 'const')) ||
             (($operandType1 === 'const') && ($operandType2 === 'colref'))
@@ -507,36 +543,10 @@ class Pika extends AbstractStorage
 
         $operandValue1 = $operands[0]->getValue();
         $operandType1 = $operands[0]->getType();
-        if ($operandType1 === 'colref') {
-            if (strpos($operandValue1, '.')) {
-                list($operandSchema1, $operandValue1) = explode('.', $operandValue1);
-                if ($operandSchema1 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
-                }
-            }
-        }
-
         $operandValue2 = $operands[1]->getValue();
         $operandType2 = $operands[1]->getType();
-        if ($operandType2 === 'colref') {
-            if (strpos($operandValue2, '.')) {
-                list($operandSchema2, $operandValue2) = explode('.', $operandValue2);
-                if ($operandSchema2 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
-                }
-            }
-        }
-
         $operandValue3 = $operands[2]->getValue();
         $operandType3 = $operands[2]->getType();
-        if ($operandType3 === 'colref') {
-            if (strpos($operandValue3, '.')) {
-                list($operandSchema3, $operandValue3) = explode('.', $operandValue3);
-                if ($operandSchema3 !== $schema) {
-                    return $this->fetchAllPrimaryIndexData($schema, $limit);
-                }
-            }
-        }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
             $index = false;
