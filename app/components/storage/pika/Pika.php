@@ -8,12 +8,11 @@ use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 use SwFwLess\components\redis\RedisWrapper;
-use SwFwLess\components\traits\Singleton;
 use SwFwLess\facades\RedisPool;
 
 class Pika extends AbstractStorage
 {
-    use Singleton;
+    protected $filterConditionCache = [];
 
     /**
      * @param $index
@@ -750,14 +749,31 @@ class Pika extends AbstractStorage
         bool $isNot = false
     )
     {
-        $conditionOperator = $condition->getOperator();
-        if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
-            return $this->filterBasicCompareCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
-        } elseif ($conditionOperator === 'between') {
-            return $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+        $operandsCacheKey = [];
+        foreach ($condition->getOperands() as $operand) {
+            $operandsCacheKey[] = [
+                'value' => $operand->getValue(),
+                'type' => $operand->getType(),
+            ];
+        }
+        $cacheKey = json_encode([
+            'operator' => $condition->getOperator(),
+            'operands' => $operandsCacheKey,
+        ]);
+        if (array_key_exists($cacheKey, $this->filterConditionCache)) {
+            return $this->filterConditionCache[$cacheKey];
         }
 
-        return [];
+        $conditionOperator = $condition->getOperator();
+        if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
+            return $this->filterConditionCache[$cacheKey] =
+                $this->filterBasicCompareCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+        } elseif ($conditionOperator === 'between') {
+            return $this->filterConditionCache[$cacheKey] =
+                $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+        }
+
+        return $this->filterConditionCache[$cacheKey] = [];
 
         //todo support more operators
     }

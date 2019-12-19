@@ -153,7 +153,7 @@ class QueryService extends BaseService
         $start = microtime(true);
         $sql = $this->request->post('sql');
         $ast = Parser::fromSql($sql)->parseAst();
-        $plan = Plan::create($ast, Pika::create());
+        $plan = Plan::create($ast, new Pika());
         $plan = RulesBasedOptimizer::fromPlan($plan)->optimize();
         $plan = CostBasedOptimizer::fromPlan($plan)->optimize();
         $resultSet = $plan->execute();
