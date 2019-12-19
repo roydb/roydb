@@ -412,14 +412,93 @@ class QueryPlan
         return $filled;
     }
 
+    /**
+     * @param Condition $condition
+     * @param $schema
+     * @param $hashJoinField
+     * @return bool
+     */
+    protected function qualifiedHashJoin(Condition $condition, $schema, &$hashJoinField)
+    {
+        $hashJoinField = null;
+        if ($condition->getOperator() === '=') {
+            $operands = $condition->getOperands();
+            $operand1 = $operands[0];
+            $operand1Type = $operand1->getType();
+            $operand1Value = $operand1->getValue();
+            $operand1Schema = null;
+            if ($operand1Type === 'colref') {
+                if (strpos($operand1Value, '.')) {
+                    list($operand1Schema,) = explode('.', $operand1Value);
+                }
+            }
+            $operand2 = $operands[1];
+            $operand2Type = $operand2->getType();
+            $operand2Value = $operand2->getValue();
+            $operand2Schema = null;
+            if ($operand2Type === 'colref') {
+                if (strpos($operand2Value, '.')) {
+                    list($operand2Schema,) = explode('.', $operand2Value);
+                }
+            }
+
+            if ($operand1Type === 'colref') {
+                if (!is_null($operand1Schema)) {
+                    if ($operand1Schema !== $schema) {
+                        $hashJoinField = $operand1Value;
+                    }
+                } else {
+                    if (!is_null($operand2Schema)) {
+                        if ($operand2Schema === $schema) {
+                            $hashJoinField = $operand1Value;
+                        }
+                    }
+                }
+            }
+
+            if ($operand2Type === 'colref') {
+                if (!is_null($operand2Schema)) {
+                    if ($operand2Schema !== $schema) {
+                        $hashJoinField = $operand2Value;
+                    }
+                } else {
+                    if (!is_null($operand1Schema)) {
+                        if ($operand1Schema === $schema) {
+                            $hashJoinField = $operand2Value;
+                        }
+                    }
+                }
+            }
+
+            if (!is_null($hashJoinField)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function innerJoinResultSet($leftResultSet, $schema)
     {
+        $hashJoinField = null;
+        $leftResultHashMap = [];
+        $onCondition = $this->extractConditions($schema['ref_clause']);
+        if ($onCondition instanceof Condition) {
+            $qualifiedHashJoin = $this->qualifiedHashJoin($onCondition, $schema, $hashJoinField);
+        } else {
+            $qualifiedHashJoin = false;
+        }
+
         $joinedResultSet = [];
 
         $rightResultSetConditions = [];
 
         foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
+                if ($qualifiedHashJoin) {
+                    $leftResultHashMap[$leftRow[$hashJoinField]] = $leftRow;
+                }
+
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
@@ -458,11 +537,37 @@ class QueryPlan
             $this->indexSuggestions
         );
 
-        //todo hash join
-        foreach ($leftResultSet as $leftRow) {
+        if (!$qualifiedHashJoin) {
+            foreach ($leftResultSet as $leftRow) {
+                foreach ($rightResultSet as $rightRow) {
+                    if ($this->joinConditionMatcher(
+                        $leftRow,
+                        $rightRow,
+                        $this->extractConditions($schema['ref_clause'])
+                    )) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                    }
+                }
+            }
+        } else {
+            $hashJoinValue = null;
+            $onCondition = $this->extractConditions($schema['ref_clause']);
+            $operands = $onCondition->getOperands();
             foreach ($rightResultSet as $rightRow) {
-                if ($this->joinConditionMatcher($leftRow, $rightRow, $this->extractConditions($schema['ref_clause']))) {
-                    $joinedResultSet[] = $leftRow + $rightRow;
+                foreach ($operands as $operandIndex => $operand) {
+                    $operandValue = $operand->getValue();
+                    if ($operand->getType() === 'colref') {
+                        if ($operandValue !== $hashJoinField) {
+                            $hashJoinValue = $rightRow[$operandValue];
+                            break;
+                        }
+                    } else {
+                        $hashJoinValue = $operandValue;
+                        break;
+                    }
+                }
+                if (array_key_exists($hashJoinValue, $leftResultHashMap)) {
+                    $joinedResultSet[] = $leftResultHashMap[$hashJoinValue] + $rightRow;
                 }
             }
         }
