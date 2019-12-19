@@ -368,8 +368,7 @@ class QueryPlan
 
     protected function joinResultSet($resultSet, $schema)
     {
-        //todo left表条件，包含right表的条件，bugfix！！！
-        //todo 优化，关联条件组合成or条件组，hash join
+        //todo hash join
         $joinHandler = self::JOIN_HANDLERS[$schema['join_type']];
         return $this->{$joinHandler}($resultSet, $schema);
     }
