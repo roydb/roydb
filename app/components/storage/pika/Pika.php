@@ -9,6 +9,7 @@ use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 use Co\Channel;
 use SwFwLess\components\redis\RedisWrapper;
+use SwFwLess\components\swoole\Scheduler;
 use SwFwLess\facades\RedisPool;
 
 class Pika extends AbstractStorage
@@ -761,21 +762,33 @@ class Pika extends AbstractStorage
             'operator' => $condition->getOperator(),
             'operands' => $operandsCacheKey,
         ]);
-        if (array_key_exists($cacheKey, $this->filterConditionCache)) {
-            return $this->filterConditionCache[$cacheKey];
+
+        $cache = Scheduler::withoutPreemptive(function () use ($cacheKey) {
+            if (array_key_exists($cacheKey, $this->filterConditionCache)) {
+                return $this->filterConditionCache[$cacheKey];
+            }
+
+            return null;
+        });
+
+        if (!is_null($cache)) {
+            return $cache;
         }
 
         $conditionOperator = $condition->getOperator();
         if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
-            return $this->filterConditionCache[$cacheKey] =
-                $this->filterBasicCompareCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBasicCompareCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
         } elseif ($conditionOperator === 'between') {
-            return $this->filterConditionCache[$cacheKey] =
-                $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+        } else {
+            $result = [];
         }
 
-        return $this->filterConditionCache[$cacheKey] = [];
+        Scheduler::withoutPreemptive(function () use ($cacheKey, $result) {
+            $this->filterConditionCache[$cacheKey] = $result;
+        });
 
+        return $result;
         //todo support more operators
     }
 
