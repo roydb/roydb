@@ -79,6 +79,8 @@ class QueryPlan
         $this->extractGroups();
         $this->extractOrders();
         $this->extractLimit();
+
+        //todo sql校验
     }
 
     protected function extractWhereConditions()
@@ -496,7 +498,9 @@ class QueryPlan
         foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
                 if ($qualifiedHashJoin) {
-                    $leftResultHashMap[$leftRow[$hashJoinField]] = $leftRow;
+                    if (array_key_exists($hashJoinField, $leftRow)) {
+                        $leftResultHashMap[$leftRow[$hashJoinField]][] = $leftRow;
+                    }
                 }
 
                 $onCondition = $this->extractConditions($schema['ref_clause']);
@@ -558,7 +562,11 @@ class QueryPlan
                     $operandValue = $operand->getValue();
                     if ($operand->getType() === 'colref') {
                         if ($operandValue !== $hashJoinField) {
-                            $hashJoinValue = $rightRow[$operandValue];
+                            if (array_key_exists($operandValue, $rightRow)) {
+                                $hashJoinValue = $rightRow[$operandValue];
+                            } else {
+                                break 2;
+                            }
                             break;
                         }
                     } else {
@@ -567,7 +575,9 @@ class QueryPlan
                     }
                 }
                 if (array_key_exists($hashJoinValue, $leftResultHashMap)) {
-                    $joinedResultSet[] = $leftResultHashMap[$hashJoinValue] + $rightRow;
+                    foreach ($leftResultHashMap[$hashJoinValue] as $leftRow) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                    }
                 }
             }
         }
@@ -759,6 +769,8 @@ class QueryPlan
                     $operandValues[] = $leftRow[$operandValue];
                 } elseif (array_key_exists($operandValue, $rightRow)) {
                     $operandValues[] = $rightRow[$operandValue];
+                } else {
+                    return false;
                 }
             } else {
                 $operandValues[] = $operandValue;
