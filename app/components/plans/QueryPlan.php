@@ -270,9 +270,6 @@ class QueryPlan
             $operandType = $operand->getType();
             $operandValue = $operand->getValue();
             if ($operandType === 'colref') {
-                if (strpos($operandValue, '.')) {
-                    list($operandSchema, $operandValue) = explode('.', $operandValue);
-                }
                 $operandValues[] = $row[$operandValue];
             } else {
                 $operandValues[] = $operandValue;
@@ -424,9 +421,10 @@ class QueryPlan
      * @param Condition $condition
      * @param $schema
      * @param $hashJoinField
+     * @param bool $rightJoin
      * @return bool
      */
-    protected function qualifiedHashJoin(Condition $condition, $schema, &$hashJoinField)
+    protected function qualifiedHashJoin(Condition $condition, $schema, &$hashJoinField, $rightJoin = false)
     {
         $hashJoinField = null;
         if ($condition->getOperator() === '=') {
@@ -452,10 +450,18 @@ class QueryPlan
 
             $schemaTable = $schema['table'];
             if ((!is_null($operand1Schema)) && (!is_null($operand2Schema))) {
-                if (($operand1Schema === $schemaTable) && ($operand2Schema !== $schemaTable)) {
-                    $hashJoinField = $operand2Value;
-                } elseif (($operand1Schema !== $schemaTable) && ($operand2Schema === $schemaTable)) {
-                    $hashJoinField = $operand1Value;
+                if (!$rightJoin) {
+                    if (($operand1Schema === $schemaTable) && ($operand2Schema !== $schemaTable)) {
+                        $hashJoinField = $operand2Value;
+                    } elseif (($operand1Schema !== $schemaTable) && ($operand2Schema === $schemaTable)) {
+                        $hashJoinField = $operand1Value;
+                    }
+                } else {
+                    if (($operand1Schema !== $schemaTable) && ($operand2Schema === $schemaTable)) {
+                        $hashJoinField = $operand2Value;
+                    } elseif (($operand1Schema === $schemaTable) && ($operand2Schema !== $schemaTable)) {
+                        $hashJoinField = $operand1Value;
+                    }
                 }
             }
 
@@ -700,14 +706,22 @@ class QueryPlan
 
     protected function rightJoinResultSet($leftResultSet, $schema)
     {
+        $hashJoinField = null;
+        $rightResultHashMap = [];
+        $onCondition = $this->extractConditions($schema['ref_clause']);
+        if ($onCondition instanceof Condition) {
+            $qualifiedHashJoin = $this->qualifiedHashJoin($onCondition, $schema, $hashJoinField, true);
+        } else {
+            $qualifiedHashJoin = false;
+        }
+
         $joinedResultSet = [];
 
-        $schemaTable = $schema['table'];
-        $schemaMetaData = $this->storage->getSchemaMetaData($schemaTable);
-        $schemaColumns = array_column($schemaMetaData['columns'], 'name');
         $emptyLeftRow = [];
-        foreach ($schemaColumns as $schemaColumn) {
-            $emptyLeftRow[$schemaColumn] = $emptyLeftRow[$schemaTable . '.' . $schemaColumn] = null;
+        foreach ($leftResultSet as $row) {
+            foreach ($row as $key => $val) {
+                $emptyLeftRow[$key] = null;
+            }
         }
 
         $filledWithLeftResult = false;
@@ -726,6 +740,7 @@ class QueryPlan
             }
         }
 
+        $schemaTable = $schema['table'];
         if (!$filledWithLeftResult) {
             $rightResultSet = $this->storage->get(
                 $schemaTable,
@@ -760,28 +775,76 @@ class QueryPlan
             ));
         }
 
-        //todo hash join
-        foreach ($rightResultSet as $rightRow) {
-            $joined = false;
+        if (!$qualifiedHashJoin) {
+            foreach ($rightResultSet as $rightRow) {
+                $joined = false;
 
-            if ($schema['ref_type'] === 'ON') {
-                $onCondition = $this->extractConditions($schema['ref_clause']);
-                if ($onCondition instanceof Condition) {
-                    $this->fillConditionWithResultSet($rightRow, $onCondition);
-                } else {
-                    $this->fillConditionTreeWithResultSet($rightRow, $onCondition);
+                if ($schema['ref_type'] === 'ON') {
+                    $onCondition = $this->extractConditions($schema['ref_clause']);
+                    if ($onCondition instanceof Condition) {
+                        $this->fillConditionWithResultSet($rightRow, $onCondition);
+                    } else {
+                        $this->fillConditionTreeWithResultSet($rightRow, $onCondition);
+                    }
+
+                    foreach ($leftResultSet as $leftRow) {
+                        if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
+                            $joinedResultSet[] = $leftRow + $rightRow;
+                            $joined = true;
+                        }
+                    }
                 }
 
-                foreach ($leftResultSet as $leftRow) {
-                    if ($this->joinConditionMatcher($leftRow, $rightRow, $onCondition)) {
-                        $joinedResultSet[] = $leftRow + $rightRow;
-                        $joined = true;
+                if (!$joined) {
+                    $joinedResultSet[] = $emptyLeftRow + $rightRow;
+                }
+            }
+        } else {
+            foreach ($rightResultSet as $rightRow) {
+                if ($schema['ref_type'] === 'ON') {
+                    if ($qualifiedHashJoin) {
+                        if (array_key_exists($hashJoinField, $rightRow)) {
+                            $rightResultHashMap[$rightRow[$hashJoinField]][] = $rightRow;
+                        }
                     }
                 }
             }
 
-            if (!$joined) {
-                $joinedResultSet[] = $emptyLeftRow + $rightRow;
+            $joinedRResultHashMap = [];
+            $hashJoinValue = null;
+            $onCondition = $this->extractConditions($schema['ref_clause']);
+            $operands = $onCondition->getOperands();
+            foreach ($leftResultSet as $leftRow) {
+                foreach ($operands as $operandIndex => $operand) {
+                    $operandValue = $operand->getValue();
+                    if ($operand->getType() === 'colref') {
+                        if ($operandValue !== $hashJoinField) {
+                            if (array_key_exists($operandValue, $leftRow)) {
+                                $hashJoinValue = $leftRow[$operandValue];
+                            } else {
+                                break 2;
+                            }
+                            break;
+                        }
+                    } else {
+                        $hashJoinValue = $operandValue;
+                        break;
+                    }
+                }
+                if (array_key_exists($hashJoinValue, $rightResultHashMap)) {
+                    $joinedRResultHashMap[$hashJoinValue] = [];
+                    foreach ($rightResultHashMap[$hashJoinValue] as $rightRow) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                    }
+                }
+            }
+
+            $unJoinedRRHashMap = array_diff_key($rightResultHashMap, $joinedRResultHashMap);
+
+            foreach ($unJoinedRRHashMap as $hash => $rightRows) {
+                foreach ($rightRows as $rightRow) {
+                    $joinedResultSet[] = $emptyLeftRow + $rightRow;
+                }
             }
         }
 
