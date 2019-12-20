@@ -574,6 +574,15 @@ class QueryPlan
 
     protected function leftJoinResultSet($leftResultSet, $schema)
     {
+        $hashJoinField = null;
+        $leftResultHashMap = [];
+        $onCondition = $this->extractConditions($schema['ref_clause']);
+        if ($onCondition instanceof Condition) {
+            $qualifiedHashJoin = $this->qualifiedHashJoin($onCondition, $schema, $hashJoinField);
+        } else {
+            $qualifiedHashJoin = false;
+        }
+
         $joinedResultSet = [];
 
         $schemaTable = $schema['table'];
@@ -588,6 +597,12 @@ class QueryPlan
 
         foreach ($leftResultSet as $leftRow) {
             if ($schema['ref_type'] === 'ON') {
+                if ($qualifiedHashJoin) {
+                    if (array_key_exists($hashJoinField, $leftRow)) {
+                        $leftResultHashMap[$leftRow[$hashJoinField]][] = $leftRow;
+                    }
+                }
+
                 $onCondition = $this->extractConditions($schema['ref_clause']);
                 if ($onCondition instanceof Condition) {
                     $this->fillConditionWithResultSet($leftRow, $onCondition);
@@ -626,19 +641,57 @@ class QueryPlan
             $this->indexSuggestions
         );
 
-        //todo hash join
-        foreach ($leftResultSet as $leftRow) {
-            $joined = false;
+        if (!$qualifiedHashJoin) {
+            foreach ($leftResultSet as $leftRow) {
+                $joined = false;
 
+                foreach ($rightResultSet as $rightRow) {
+                    if ($this->joinConditionMatcher($leftRow, $rightRow, $this->extractConditions($schema['ref_clause']))) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                        $joined = true;
+                    }
+                }
+
+                if (!$joined) {
+                    $joinedResultSet[] = $leftRow + $emptyRightRow;
+                }
+            }
+        } else {
+            $joinedLResultHashMap = [];
+            $hashJoinValue = null;
+            $onCondition = $this->extractConditions($schema['ref_clause']);
+            $operands = $onCondition->getOperands();
             foreach ($rightResultSet as $rightRow) {
-                if ($this->joinConditionMatcher($leftRow, $rightRow, $this->extractConditions($schema['ref_clause']))) {
-                    $joinedResultSet[] = $leftRow + $rightRow;
-                    $joined = true;
+                foreach ($operands as $operandIndex => $operand) {
+                    $operandValue = $operand->getValue();
+                    if ($operand->getType() === 'colref') {
+                        if ($operandValue !== $hashJoinField) {
+                            if (array_key_exists($operandValue, $rightRow)) {
+                                $hashJoinValue = $rightRow[$operandValue];
+                            } else {
+                                break 2;
+                            }
+                            break;
+                        }
+                    } else {
+                        $hashJoinValue = $operandValue;
+                        break;
+                    }
+                }
+                if (array_key_exists($hashJoinValue, $leftResultHashMap)) {
+                    $joinedLResultHashMap[$hashJoinValue] = [];
+                    foreach ($leftResultHashMap[$hashJoinValue] as $leftRow) {
+                        $joinedResultSet[] = $leftRow + $rightRow;
+                    }
                 }
             }
 
-            if (!$joined) {
-                $joinedResultSet[] = $leftRow + $emptyRightRow;
+            $unJoinedLRHashMap = array_diff_key($leftResultHashMap, $joinedLResultHashMap);
+
+            foreach ($unJoinedLRHashMap as $hash => $leftRows) {
+                foreach ($leftRows as $leftRow) {
+                    $joinedResultSet[] = $leftRow + $emptyRightRow;
+                }
             }
         }
 
