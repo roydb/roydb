@@ -1071,6 +1071,8 @@ class QueryPlan
      */
     protected function resultSetUdfFilter($columns, $resultSet)
     {
+        //todo agg func without group bugfix
+
         $udfResultColumns = [];
 
         foreach ($columns as $columnIndex => $column) {

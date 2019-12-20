@@ -32,6 +32,13 @@ class Aggregate
         }
     }
 
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     public static function max($parameters, $row, $resultSet)
     {
         /** @var Column $column */
@@ -40,8 +47,12 @@ class Aggregate
         $columnType = $column->getType();
         $columnValue = $column->getValue();
         if ($columnType === 'const') {
-            return $columnValue;
+            throw new \Exception('Unsupported const param passed to max function');
         } else {
+            if ($columnValue === '*') {
+                throw new \Exception('Unsupported column named as \'*\' passed to max function');
+            }
+
             if ($row instanceof Aggregation) {
                 return max(array_column($row->getRows(), $columnValue));
             } else {
@@ -50,6 +61,13 @@ class Aggregate
         }
     }
 
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     public static function min($parameters, $row, $resultSet)
     {
         /** @var Column $column */
@@ -58,8 +76,12 @@ class Aggregate
         $columnType = $column->getType();
         $columnValue = $column->getValue();
         if ($columnType === 'const') {
-            return $columnValue;
+            throw new \Exception('Unsupported const param passed to min function');
         } else {
+            if ($columnValue === '*') {
+                throw new \Exception('Unsupported column named as \'*\' passed to min function');
+            }
+
             if ($row instanceof Aggregation) {
                 return min(array_column($row->getRows(), $columnValue));
             } else {
@@ -68,6 +90,13 @@ class Aggregate
         }
     }
 
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     public static function first($parameters, $row, $resultSet)
     {
         /** @var Column $column */
@@ -76,7 +105,7 @@ class Aggregate
         $columnType = $column->getType();
         $columnValue = $column->getValue();
         if ($columnType === 'const') {
-            return $columnValue;
+            throw new \Exception('Unsupported const param passed to first function');
         } else {
             if ($columnValue === '*') {
                 if ($row instanceof Aggregation) {
