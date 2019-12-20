@@ -77,6 +77,7 @@ class QueryPlan
         $this->extractSchemas();
         $this->condition = $this->extractWhereConditions();
         $this->extractGroups();
+        $this->extractHaving();
         $this->extractOrders();
         $this->extractLimit();
 
@@ -222,6 +223,11 @@ class QueryPlan
             $this->groups[] = (new Group())->setType($group['expr_type'])
                 ->setValue($group['base_expr']);
         }
+    }
+
+    protected function extractHaving()
+    {
+        //todo
     }
 
     protected function extractOrders()
