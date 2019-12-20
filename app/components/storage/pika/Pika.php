@@ -182,7 +182,7 @@ class Pika extends AbstractStorage
             return [];
         }
 
-        $itLimit = 100;
+        $itLimit = 100; //must greater than 1
         $offsetLimitCount = null;
         if (!is_null($limit)) {
             $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
@@ -222,14 +222,9 @@ class Pika extends AbstractStorage
 
                 $resultCnt = count($result[1]);
 
-                if ($skipFirst) {
-                    if ($resultCnt <= 2) {
-                        break;
-                    }
-                } else {
-                    if ($resultCnt <= 0) {
-                        break;
-                    }
+                //EOF
+                if ($resultCnt < (2 * $itLimit)) {
+                    break;
                 }
 
                 if (!is_null($offsetLimitCount)) {
@@ -417,7 +412,7 @@ class Pika extends AbstractStorage
             $skipEnd = false;
             $skipValues = [];
 
-            $itLimit = 100;
+            $itLimit = 100; //must greater than 1
             $offset = null;
             $limitCount = null;
             $offsetLimitCount = null;
@@ -519,17 +514,11 @@ class Pika extends AbstractStorage
                     $resultCnt = count($result[1]);
 
                     //EOF
-                    if ($skipFirst) {
-                        if ($resultCnt <= 2) {
-                            break;
-                        }
-                    } else {
-                        if ($resultCnt <= 0) {
-                            break;
-                        }
+                    if ($resultCnt < (2 * $itLimit)) {
+                        break;
                     }
 
-                    if (($resultCnt > 1) && (!$skipFirst)) {
+                    if (!$skipFirst) {
                         $skipFirst = true;
                     }
 
@@ -629,7 +618,7 @@ class Pika extends AbstractStorage
             }
             $itStart = '';
             $itEnd = '';
-            $itLimit = 100;
+            $itLimit = 100; //must greater than 1
             $offset = null;
             $limitCount = null;
             $offsetLimitCount = null;
@@ -706,17 +695,11 @@ class Pika extends AbstractStorage
                     $resultCnt = count($result[1]);
 
                     //EOF
-                    if ($skipFirst) {
-                        if ($resultCnt <= 2) {
-                            break;
-                        }
-                    } else {
-                        if ($resultCnt <= 0) {
-                            break;
-                        }
+                    if ($resultCnt < (2 * $itLimit)) {
+                        break;
                     }
 
-                    if (($resultCnt > 1) && (!$skipFirst)) {
+                    if (!$skipFirst) {
                         $skipFirst = true;
                     }
 
