@@ -1071,8 +1071,6 @@ class QueryPlan
      */
     protected function resultSetUdfFilter($columns, $resultSet)
     {
-        //todo agg func without group bugfix
-
         $udfResultColumns = [];
 
         foreach ($columns as $columnIndex => $column) {
@@ -1098,6 +1096,15 @@ class QueryPlan
                 $udfResultColumn->setType('colref')
                     ->setValue($udfResultColumnName)
                     ->setAlias($column->getAlias());
+
+                foreach ($resultSet as $rowIndex => $row) {
+                    if (in_array($udfName, UDF::AGGREGATE_UDF)) {
+                        if ((!is_object($row)) || (!($row instanceof Aggregation))) {
+                            $resultSet = [(new Aggregation())->setRows($resultSet)];
+                        }
+                    }
+                    break;
+                }
 
                 foreach ($resultSet as $rowIndex => $row) {
                     $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
