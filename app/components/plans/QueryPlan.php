@@ -270,7 +270,11 @@ class QueryPlan
             $operandType = $operand->getType();
             $operandValue = $operand->getValue();
             if ($operandType === 'colref') {
-                $operandValues[] = $row[$operandValue];
+                if (array_key_exists($operandValue, $row)) {
+                    $operandValues[] = $row[$operandValue];
+                } else {
+                    throw new \Exception($operandValue . ' is not column of ' . json_encode($row));
+                }
             } else {
                 $operandValues[] = $operandValue;
             }
@@ -375,7 +379,6 @@ class QueryPlan
 
     protected function joinResultSet($resultSet, $schema)
     {
-        //todo hash join
         $joinHandler = self::JOIN_HANDLERS[$schema['join_type']];
         return $this->{$joinHandler}($resultSet, $schema);
     }
@@ -475,6 +478,12 @@ class QueryPlan
         return false;
     }
 
+    /**
+     * @param $leftResultSet
+     * @param $schema
+     * @return array
+     * @throws \Exception
+     */
     protected function innerJoinResultSet($leftResultSet, $schema)
     {
         $hashJoinField = null;
@@ -495,6 +504,8 @@ class QueryPlan
                 if ($qualifiedHashJoin) {
                     if (array_key_exists($hashJoinField, $leftRow)) {
                         $leftResultHashMap[$leftRow[$hashJoinField]][] = $leftRow;
+                    } else {
+                        throw new \Exception($hashJoinField . ' is not column of ' . json_encode($leftRow));
                     }
                 }
 
@@ -560,7 +571,7 @@ class QueryPlan
                             if (array_key_exists($operandValue, $rightRow)) {
                                 $hashJoinValue = $rightRow[$operandValue];
                             } else {
-                                break 2;
+                                throw new \Exception($hashJoinField . ' is not column of ' . $schema['table']);
                             }
                             break;
                         }
@@ -580,6 +591,12 @@ class QueryPlan
         return $joinedResultSet;
     }
 
+    /**
+     * @param $leftResultSet
+     * @param $schema
+     * @return array
+     * @throws \Exception
+     */
     protected function leftJoinResultSet($leftResultSet, $schema)
     {
         $hashJoinField = null;
@@ -608,6 +625,8 @@ class QueryPlan
                 if ($qualifiedHashJoin) {
                     if (array_key_exists($hashJoinField, $leftRow)) {
                         $leftResultHashMap[$leftRow[$hashJoinField]][] = $leftRow;
+                    } else {
+                        throw new \Exception($hashJoinField . ' is not column of ' . json_encode($leftRow));
                     }
                 }
 
@@ -677,7 +696,7 @@ class QueryPlan
                             if (array_key_exists($operandValue, $rightRow)) {
                                 $hashJoinValue = $rightRow[$operandValue];
                             } else {
-                                break 2;
+                                throw new \Exception($hashJoinField . ' is not column of ' . $schemaTable);
                             }
                             break;
                         }
@@ -706,6 +725,12 @@ class QueryPlan
         return $joinedResultSet;
     }
 
+    /**
+     * @param $leftResultSet
+     * @param $schema
+     * @return array
+     * @throws \Exception
+     */
     protected function rightJoinResultSet($leftResultSet, $schema)
     {
         $hashJoinField = null;
@@ -807,6 +832,8 @@ class QueryPlan
                     if ($qualifiedHashJoin) {
                         if (array_key_exists($hashJoinField, $rightRow)) {
                             $rightResultHashMap[$rightRow[$hashJoinField]][] = $rightRow;
+                        } else {
+                            throw new \Exception($hashJoinField . ' is not column of ' . $schemaTable);
                         }
                     }
                 }
@@ -824,7 +851,9 @@ class QueryPlan
                             if (array_key_exists($operandValue, $leftRow)) {
                                 $hashJoinValue = $leftRow[$operandValue];
                             } else {
-                                break 2;
+                                throw new \Exception(
+                                    $hashJoinField . ' is not column of ' . json_encode($leftRow)
+                                );
                             }
                             break;
                         }
