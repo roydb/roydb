@@ -345,18 +345,20 @@ class QueryPlan
 
             if ($hasJoin) {
                 $whereCondition = $this->extractWhereConditions();
-                foreach ($resultSet as $i => $row) {
-                    if ($whereCondition instanceof ConditionTree) {
-                        if (!$this->filterConditionTreeByIndexData($row, $whereCondition)) {
-                            unset($resultSet[$i]);
-                        }
-                    } else {
-                        if (!$this->filterConditionByIndexData($row, $whereCondition)) {
-                            unset($resultSet[$i]);
+                if (!is_null($whereCondition)) {
+                    foreach ($resultSet as $i => $row) {
+                        if ($whereCondition instanceof ConditionTree) {
+                            if (!$this->filterConditionTreeByIndexData($row, $whereCondition)) {
+                                unset($resultSet[$i]);
+                            }
+                        } else {
+                            if (!$this->filterConditionByIndexData($row, $whereCondition)) {
+                                unset($resultSet[$i]);
+                            }
                         }
                     }
+                    $resultSet = array_values($resultSet);
                 }
-                $resultSet = array_values($resultSet);
             }
         } else {
             $resultSet[] = [];

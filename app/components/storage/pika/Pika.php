@@ -790,11 +790,18 @@ class Pika extends AbstractStorage
         $indexSuggestions
     )
     {
-        $isNot = $conditionTree->getLogicOperator() === 'not';
+        $logicOperator = $conditionTree->getLogicOperator();
+
+        $isNot = $logicOperator === 'not';
 
         $result = [];
 
         $subConditions = $conditionTree->getSubConditions();
+
+        if ($logicOperator === 'and') {
+            $subConditions = array_slice($subConditions, 0, 1);
+        }
+
         $subConditionCount = count($subConditions);
 
         $channel = new Channel($subConditionCount);
