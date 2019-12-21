@@ -50,6 +50,40 @@ class Pika extends AbstractStorage
         return json_decode($schemaData, true);
     }
 
+    /**
+     * @param $colName
+     * @param $schema
+     * @return bool
+     * @throws \Throwable
+     */
+    protected function colrefBelongsToSchema($colName, $schema)
+    {
+        $schemaMetaData = $this->getSchemaMetaData($schema);
+        $schemaColumns = array_column($schemaMetaData['columns'], 'name');
+
+        if (strpos($colName, '.')) {
+            list($operandSchema, $colName) = explode('.', $colName);
+            if (($operandSchema !== $schema) ||
+                (!in_array($colName, $schemaColumns))
+            ) {
+                return false;
+            }
+        } else {
+            if (!in_array($colName, $schemaColumns)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param $schema
+     * @param $condition
+     * @param null $parentOperator
+     * @return Condition|ConditionTree|mixed|null
+     * @throws \Throwable
+     */
     protected function filterConditionWithSchema($schema, $condition, $parentOperator = null)
     {
         if (is_null($condition)) {
@@ -63,38 +97,35 @@ class Pika extends AbstractStorage
                 $operandType = $operand->getType();
                 $operandValue = $operand->getValue();
                 if ($operandType === 'colref') {
-                    if (strpos($operandValue, '.')) {
-                        list($operandSchema, $operandValue) = explode('.', $operandValue);
-                        if ($operandSchema !== $schema) {
-                            if (is_null($parentOperator)) {
-                                return null;
-                            } elseif ($parentOperator === 'and') {
-                                return null;
-                            } elseif ($parentOperator === 'not') {
-                                $filteredConditionTree = new ConditionTree();
-                                $filteredConditionTree->setLogicOperator('not');
-                                $filteredCondition = (new Condition())->setOperator('=')
-                                    ->addOperands(
-                                        (new Operand())->setType('const')
-                                            ->setValue(1)
-                                    )
-                                    ->addOperands(
-                                        (new Operand())->setType('const')
-                                            ->setValue(1)
-                                    );
-                                $filteredConditionTree->addSubConditions($filteredCondition);
-                                return $filteredConditionTree;
-                            } else {
-                                return (new Condition())->setOperator('=')
-                                    ->addOperands(
-                                        (new Operand())->setType('const')
-                                            ->setValue(1)
-                                    )
-                                    ->addOperands(
-                                        (new Operand())->setType('const')
-                                            ->setValue(1)
-                                    );
-                            }
+                    if (!$this->colrefBelongsToSchema($operandValue, $schema)) {
+                        if (is_null($parentOperator)) {
+                            return null;
+                        } elseif ($parentOperator === 'and') {
+                            return null;
+                        } elseif ($parentOperator === 'not') {
+                            $filteredConditionTree = new ConditionTree();
+                            $filteredConditionTree->setLogicOperator('not');
+                            $filteredCondition = (new Condition())->setOperator('=')
+                                ->addOperands(
+                                    (new Operand())->setType('const')
+                                        ->setValue(1)
+                                )
+                                ->addOperands(
+                                    (new Operand())->setType('const')
+                                        ->setValue(1)
+                                );
+                            $filteredConditionTree->addSubConditions($filteredCondition);
+                            return $filteredConditionTree;
+                        } else {
+                            return (new Condition())->setOperator('=')
+                                ->addOperands(
+                                    (new Operand())->setType('const')
+                                        ->setValue(1)
+                                )
+                                ->addOperands(
+                                    (new Operand())->setType('const')
+                                        ->setValue(1)
+                                );
                         }
                     }
                 }
@@ -279,10 +310,7 @@ class Pika extends AbstractStorage
             $operandValue = $operand->getValue();
             if ($operandType === 'colref') {
                 if (strpos($operandValue, '.')) {
-                    list($operandSchema, $operandValue) = explode('.', $operandValue);
-                    if ($operandSchema !== $schema) {
-                        return true;
-                    }
+                    list(, $operandValue) = explode('.', $operandValue);
                 }
                 if (!array_key_exists($operandValue, $row)) {
                     $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);

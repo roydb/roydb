@@ -26,7 +26,7 @@ class CostBasedOptimizer
             return $this->plan;
         }
 
-        //todo
+        //todo 基于统计数据对condition的cost打分，在and条件下选择代价小的condition
 
         return $this->plan;
     }

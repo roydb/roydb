@@ -43,7 +43,7 @@ class QueryService extends BaseService
 //            var_dump($redis->hGet('test1.name', 'foo'));
 //            var_dump($redis->hGet('test1.name', 'haha'));
 //
-//            $redis->hSet('meta.schema', 'test', json_encode([
+//            $redis->hSet('meta.schema', 'test1', json_encode([
 //                'pk' => 'id',
 //                'columns' => [
 //                    [
@@ -109,7 +109,7 @@ class QueryService extends BaseService
 //                    ],
 //                ],
 //            ]));
-//            var_dump($redis->hGet('meta.schema', 'test'));
+//            var_dump($redis->hGet('meta.schema', 'test1'));
 //            var_dump($redis->hGet('meta.schema', 'test2'));
 //
 //            return [
