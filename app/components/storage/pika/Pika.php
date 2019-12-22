@@ -305,7 +305,8 @@ class Pika extends AbstractStorage
         $operands = $condition->getOperands();
 
         $operandValues = [];
-        foreach ($operands as $operand) {
+
+        foreach ($operands as $i => $operand) {
             $operandType = $operand->getType();
             $operandValue = $operand->getValue();
             if ($operandType === 'colref') {
@@ -315,9 +316,9 @@ class Pika extends AbstractStorage
                 if (!array_key_exists($operandValue, $row)) {
                     $row = $this->fetchPrimaryIndexDataById($row['id'], $schema);
                 }
-                $operandValues[] = $row[$operandValue];
+                $operandValues[$i] = $row[$operandValue];
             } else {
-                $operandValues[] = $operandValue;
+                $operandValues[$i] = $operandValue;
             }
         }
 
@@ -886,6 +887,33 @@ class Pika extends AbstractStorage
     }
 
     /**
+     * @param $indexData
+     * @param $schema
+     * @return mixed
+     * @throws \Throwable
+     */
+    protected function fetchAllColumnsByIndexData($indexData, $schema)
+    {
+        $indexDataCnt = count($indexData);
+
+        $channel = new Channel($indexDataCnt);
+
+        foreach ($indexData as $row) {
+            go(function () use ($row, $schema, $channel) {
+                $channel->push($this->fetchPrimaryIndexDataById($row['id'], $schema));
+            });
+        }
+
+        $transformedIndexData = [];
+
+        for ($i = 0; $i < $indexDataCnt; ++$i) {
+            $transformedIndexData[] = $channel->pop();
+        }
+
+        return $transformedIndexData;
+    }
+
+    /**
      * Fetching index data by single condition, then filtering index data by all conditions.
      *
      * @param $schema
@@ -900,17 +928,15 @@ class Pika extends AbstractStorage
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
                 $indexData = $this->filterCondition($schema, $condition, $limit, $indexSuggestions);
+                $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
             } else {
                 $indexData = $this->filterConditionTree($schema, $condition, $limit, $indexSuggestions);
+                $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
                 foreach ($indexData as $i => $row) {
                     if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
                         unset($indexData[$i]);
                     }
                 }
-            }
-
-            foreach ($indexData as $i => $row) {
-                $indexData[$i] = $this->fetchPrimaryIndexDataById($row['id'], $schema);
             }
         } else {
             $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);
