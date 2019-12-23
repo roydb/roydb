@@ -56,7 +56,7 @@ class Aggregation
      */
     public function mergeAggregatedRow(array $aggregatedRow): self
     {
-        $this->aggregatedRow = array_merge($this->aggregatedRow, $aggregatedRow);
+        $this->aggregatedRow = $this->aggregatedRow + $aggregatedRow;
         return $this;
     }
 

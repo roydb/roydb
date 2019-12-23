@@ -53,6 +53,7 @@ class QueryPlan
     protected $groups;
 
     //todo
+    /** @var Condition|ConditionTree|null  */
     protected $having;
 
     /** @var Order[] */
@@ -90,7 +91,7 @@ class QueryPlan
         if (!isset($stmt['WHERE'])) {
             return null;
         }
-        return $this->extractConditions($this->ast->getStmt()['WHERE']);
+        return $this->extractConditions($stmt['WHERE']);
     }
 
     protected function extractColumns($selectExpr)
@@ -124,7 +125,7 @@ class QueryPlan
         $conditionTree = new ConditionTree();
         $condition = new Condition();
         foreach ($conditionExpr as $expr) {
-            if ($expr['expr_type'] === 'colref') {
+            if (($expr['expr_type'] === 'colref') || ($expr['expr_type'] === 'alias')) {
                 $condition->addOperands(
                     (new Operand())->setType('colref')->setValue($expr['base_expr'])
                 );
@@ -227,7 +228,12 @@ class QueryPlan
 
     protected function extractHaving()
     {
-        //todo
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['HAVING'])) {
+            return null;
+        }
+
+        $this->having = $this->extractConditions($stmt['HAVING']);
     }
 
     protected function extractOrders()
@@ -269,7 +275,7 @@ class QueryPlan
         foreach ($operands as $operand) {
             $operandType = $operand->getType();
             $operandValue = $operand->getValue();
-            if ($operandType === 'colref') {
+            if (($operandType === 'colref') || ($operandType === 'alias')) {
                 if (array_key_exists($operandValue, $row)) {
                     $operandValues[] = $row[$operandValue];
                 } else {
@@ -370,6 +376,8 @@ class QueryPlan
 
         $resultSet = $this->resultSetGroupFilter($resultSet);
         list($columns, $resultSet) = $this->resultSetUdfFilter($this->columns, $resultSet);
+        $resultSet = $this->resultSetColumnsTransform($columns, $resultSet);
+        $resultSet = $this->resultSetHavingFilter($resultSet);
         $resultSet = $this->resultSetOrder($resultSet);
         $resultSet = $this->resultSetColumnsFilter($columns, $resultSet);
         $resultSet = $this->resultSetLimit($resultSet);
@@ -1161,7 +1169,7 @@ class QueryPlan
                         if ($row instanceof Aggregation) {
                             $row->mergeAggregatedRow($filtered);
                         } else {
-                            $row = array_merge($row, $filtered);
+                            $row = $row + $filtered;
                             $resultSet[$rowIndex] = $row;
                         }
                         $udfResultColumn = null;
@@ -1190,6 +1198,34 @@ class QueryPlan
         return [array_merge($columns, $udfResultColumns), $resultSet];
     }
 
+    /**
+     * @param $resultSet
+     * @return array
+     * @throws \Throwable
+     */
+    protected function resultSetHavingFilter($resultSet)
+    {
+        if (is_null($this->having)) {
+            return $resultSet;
+        }
+
+        $havingCondition = $this->having;
+
+        foreach ($resultSet as $i => $row) {
+            if ($havingCondition instanceof ConditionTree) {
+                if (!$this->filterConditionTreeByIndexData($row, $havingCondition)) {
+                    unset($resultSet[$i]);
+                }
+            } else {
+                if (!$this->filterConditionByIndexData($row, $havingCondition)) {
+                    unset($resultSet[$i]);
+                }
+            }
+        }
+
+        return array_values($resultSet);
+    }
+
     protected function resultSetOrder($resultSet)
     {
         if (is_null($this->orders)) {
@@ -1208,12 +1244,47 @@ class QueryPlan
             }
 
             $sortFuncParams[] = array_column($resultSet, $order->getValue());
+            //todo throw ex if order column is not exists in result set row
             $sortFuncParams[] = $order->getDirection() === 'ASC' ? SORT_ASC : SORT_DESC;
         }
 
         $sortFuncParams[] = &$resultSet;
 
         array_multisort(...$sortFuncParams);
+
+        return $resultSet;
+    }
+
+    protected function resultSetColumnsTransform($columns, $resultSet)
+    {
+        $columnNames = [];
+        /** @var Column[] $aliasColumns */
+        $aliasColumns = [];
+        foreach ($columns as $column) {
+            if (!$column->hasSubColumns()) {
+                $columnAlias = $column->getAlias();
+                $columnAliasName = isset($columnAlias) ? $columnAlias['name'] : null;
+                $columnNames[] = $columnAliasName ?? $column->getValue();
+                if (!is_null($columnAlias)) {
+                    $aliasColumns[] = $column;
+                }
+            }
+        }
+
+        foreach ($resultSet as $i => $row) {
+            $transformedRow = [];
+            foreach ($aliasColumns as $aliasColumn) {
+                $aliasColumnName = $aliasColumn->getAlias()['name'];
+                $originColumnName = $aliasColumn->getValue();
+                $transformedRow[$aliasColumnName] = $row[$originColumnName];
+            }
+            foreach ($row as $key => $value) {
+                if (!array_key_exists($key, $transformedRow)) {
+                    $transformedRow[$key] = $value;
+                }
+            }
+            $resultSet[$i] = $transformedRow;
+        }
 
         return $resultSet;
     }
@@ -1225,6 +1296,8 @@ class QueryPlan
      */
     protected function resultSetColumnsFilter($columns, $resultSet)
     {
+        //todo columns transform & columns filter
+
         $columnNames = [];
         /** @var Column[] $constColumns */
         $constColumns = [];
