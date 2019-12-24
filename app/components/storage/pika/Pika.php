@@ -39,6 +39,8 @@ class Pika extends AbstractStorage
      */
     public function getSchemaMetaData($schema)
     {
+        //todo cache
+
         $metaSchema = $this->openBtree('meta.schema');
         $schemaData = $this->safeUseIndex($metaSchema, function (RedisWrapper $metaSchema) use ($schema) {
             return $metaSchema->hGet('meta.schema', $schema);
