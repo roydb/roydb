@@ -16,6 +16,8 @@ class Pika extends AbstractStorage
 {
     protected $filterConditionCache = [];
 
+    protected $schemaMetaCache = [];
+
     /**
      * @param $index
      * @param $callback
@@ -39,17 +41,34 @@ class Pika extends AbstractStorage
      */
     public function getSchemaMetaData($schema)
     {
-        //todo cache
+        $cache = Scheduler::withoutPreemptive(function () use ($schema) {
+            if (array_key_exists($schema, $this->schemaMetaCache)) {
+                return $this->schemaMetaCache[$schema];
+            }
+
+            return false;
+        });
+
+        if ($cache !== false) {
+            return $cache;
+        }
 
         $metaSchema = $this->openBtree('meta.schema');
         $schemaData = $this->safeUseIndex($metaSchema, function (RedisWrapper $metaSchema) use ($schema) {
             return $metaSchema->hGet('meta.schema', $schema);
         });
+
         if ($schemaData === false) {
-            return null;
+            $result = null;
+        } else {
+            $result = json_decode($schemaData, true);
         }
 
-        return json_decode($schemaData, true);
+        Scheduler::withoutPreemptive(function () use ($schema, $result) {
+            $this->schemaMetaCache[$schema] = $result;
+        });
+
+        return $result;
     }
 
     /**
