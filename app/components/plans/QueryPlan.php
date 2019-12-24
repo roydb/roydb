@@ -52,7 +52,6 @@ class QueryPlan
     /** @var Group[] */
     protected $groups;
 
-    //todo
     /** @var Condition|ConditionTree|null  */
     protected $having;
 
@@ -1226,6 +1225,11 @@ class QueryPlan
         return array_values($resultSet);
     }
 
+    /**
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     protected function resultSetOrder($resultSet)
     {
         if (is_null($this->orders)) {
@@ -1243,8 +1247,13 @@ class QueryPlan
                 continue;
             }
 
-            $sortFuncParams[] = array_column($resultSet, $order->getValue());
-            //todo throw ex if order column is not exists in result set row
+            $orderColumnName = $order->getValue();
+            if (count($resultSet) > 0) {
+                if (!array_key_exists($orderColumnName, $resultSet[0])) {
+                    throw new \Exception($orderColumnName . ' is not column of ' . json_encode($resultSet[0]));
+                }
+            }
+            $sortFuncParams[] = array_column($resultSet, $orderColumnName);
             $sortFuncParams[] = $order->getDirection() === 'ASC' ? SORT_ASC : SORT_DESC;
         }
 
@@ -1296,8 +1305,6 @@ class QueryPlan
      */
     protected function resultSetColumnsFilter($columns, $resultSet)
     {
-        //todo columns transform & columns filter
-
         $columnNames = [];
         /** @var Column[] $constColumns */
         $constColumns = [];
@@ -1322,9 +1329,7 @@ class QueryPlan
                 $row[$constColumnValue] = $constColumnValue;
             }
             foreach ($aliasColumns as $aliasColumn) {
-                $aliasColumnName = $aliasColumn->getAlias()['name'];
                 $originColumnName = $aliasColumn->getValue();
-                $row[$aliasColumnName] = $row[$originColumnName];
                 unset($row[$originColumnName]);
             }
             if (!in_array('*', $columnNames)) {
