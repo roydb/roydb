@@ -860,7 +860,6 @@ class Pika extends AbstractStorage
         $channel = new Channel($coroutineTotal);
 
         foreach ($subConditions as $i => $subCondition) {
-            //todo bugfix 连接池(临时connect连接数也不够)不够用
             go(function () use (
                 $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel
             ) {
@@ -908,6 +907,8 @@ class Pika extends AbstractStorage
                 $result = array_merge($result, $channel->pop());
             }
         }
+
+        //todo bugfix too much records from one condition
 
         $idMap = [];
         foreach ($result as $i => $row) {
