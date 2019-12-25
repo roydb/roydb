@@ -858,6 +858,7 @@ class Pika extends AbstractStorage
         $channel = new Channel($subConditionCount);
 
         foreach ($subConditions as $i => $subCondition) {
+            //todo bugfix 连接池(临时connect连接数也不够)不够用
             go(function () use (
                 $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel
             ) {
@@ -921,6 +922,7 @@ class Pika extends AbstractStorage
         $channel = new Channel($indexDataCnt);
 
         foreach ($indexData as $row) {
+            //todo bugfix 连接池(临时connect连接数也不够)不够用
             go(function () use ($row, $schema, $channel) {
                 $channel->push($this->fetchPrimaryIndexDataById($row['id'], $schema));
             });
