@@ -849,6 +849,7 @@ class Pika extends AbstractStorage
         $subConditions = $conditionTree->getSubConditions();
 
         if ($logicOperator === 'and') {
+            //todo select sub-condition by statistic
             $subConditions = array_slice($subConditions, 0, 1);
         }
 
