@@ -229,6 +229,8 @@ class Pika extends AbstractStorage
      */
     protected function fetchAllPrimaryIndexData($schema, $limit)
     {
+        //todo hvals
+
         $index = $this->openBtree($schema);
         if ($index === false) {
             return [];
@@ -917,24 +919,27 @@ class Pika extends AbstractStorage
      */
     protected function fetchAllColumnsByIndexData($indexData, $schema)
     {
-        $indexDataCnt = count($indexData);
+        $index = $this->openBtree($schema);
+        if ($index === false) {
+            return [];
+        }
 
-        $channel = new Channel($indexDataCnt);
+        $idList = array_column($indexData, 'id'); //todo fetch primary key from schema meta data
+        if (count($idList) <= 0) {
+            return [];
+        }
 
-        foreach ($indexData as $row) {
-            //todo bugfix 连接池(临时connect连接数也不够)不够用
-            go(function () use ($row, $schema, $channel) {
-                $channel->push($this->fetchPrimaryIndexDataById($row['id'], $schema));
+        return $this->safeUseIndex($index, function (RedisWrapper $index) use ($idList, $schema) {
+            $rows = $index->hMGet($schema, $idList);
+
+            $rows = array_filter($rows);
+
+            array_walk($rows, function (&$row) {
+                $row = json_decode($row, true);
             });
-        }
 
-        $transformedIndexData = [];
-
-        for ($i = 0; $i < $indexDataCnt; ++$i) {
-            $transformedIndexData[] = $channel->pop();
-        }
-
-        return $transformedIndexData;
+            return $rows;
+        });
     }
 
     /**
