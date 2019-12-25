@@ -49,7 +49,7 @@ class RulesBasedOptimizer
         if (!is_null($queryPlan->getGroups())) {
             return;
         }
-        if (count($queryPlan->getSchemas()) > 0) {
+        if (count($queryPlan->getSchemas()) > 1) {
             return;
         }
         $condition = $queryPlan->getCondition();
