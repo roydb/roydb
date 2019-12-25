@@ -18,30 +18,13 @@ class QueryService extends BaseService
     {
 //        $redis = RedisPool::pick('pika');
 //        try {
-//            $redis->hSet('test2.name', 'foo', json_encode([['id' => 1]]));
-//            $redis->hSet('test2', 1, json_encode(['id' => 1, 'type' => 1, 'name' => 'foo']));
-//            $redis->hSet('test2.name', 'goo', json_encode([['id' => 2]]));
-//            $redis->hSet('test2', 2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
-//            $redis->hSet('test2.name', 'zoo', json_encode([['id' => 3]]));
-//            $redis->hSet('test2', 3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
-//            $redis->hSet('test2.name', 'doo', json_encode([['id' => 5]]));
-//            $redis->hSet('test2', 5, json_encode(['id' => 5, 'type' => 1, 'name' => 'doo']));
-//            $redis->hSet('test2.name', 'boo', json_encode([['id' => 4]]));
-//            $redis->hSet('test2', 4, json_encode(['id' => 4, 'type' => 1, 'name' => 'boo']));
-//            var_dump($redis->hGet('test2.name', 'foo'));
-//            var_dump($redis->hGet('test2.name', 'haha'));
-//            $redis->hSet('test1.name', 'foo', json_encode([['id' => 1]]));
-//            $redis->hSet('test1', 1, json_encode(['id' => 1, 'type' => 1, 'name' => 'foo']));
-//            $redis->hSet('test1.name', 'goo', json_encode([['id' => 2]]));
-//            $redis->hSet('test1', 2, json_encode(['id' => 2, 'type' => 1, 'name' => 'goo']));
-//            $redis->hSet('test1.name', 'zoo', json_encode([['id' => 3]]));
-//            $redis->hSet('test1', 3, json_encode(['id' => 3, 'type' => 1, 'name' => 'zoo']));
-//            $redis->hSet('test1.name', 'doo', json_encode([['id' => 5]]));
-//            $redis->hSet('test1', 5, json_encode(['id' => 5, 'type' => 1, 'name' => 'doo']));
-//            $redis->hSet('test1.name', 'boo', json_encode([['id' => 4]]));
-//            $redis->hSet('test1', 4, json_encode(['id' => 4, 'type' => 1, 'name' => 'boo']));
-//            var_dump($redis->hGet('test1.name', 'foo'));
-//            var_dump($redis->hGet('test1.name', 'haha'));
+//            for ($i = 0; $i < 100000; ++$i) {
+//                $firstAlphabet = chr(ord('a') + ($i % 25));
+//                $redis->hSet('test2.name', $firstAlphabet . 'oo', json_encode([['id' => $i]]));
+//                $redis->hSet('test2', $i, json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo']));
+//                $redis->hSet('test1.name', $firstAlphabet . 'oo', json_encode([['id' => $i]]));
+//                $redis->hSet('test1', $i, json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo']));
+//            }
 //
 //            $redis->hSet('meta.schema', 'test1', json_encode([
 //                'pk' => 'id',
