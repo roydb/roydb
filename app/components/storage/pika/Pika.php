@@ -391,6 +391,7 @@ class Pika extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $rootCondition
      * @param Condition $condition
      * @param $limit
      * @param $indexSuggestions
@@ -400,6 +401,7 @@ class Pika extends AbstractStorage
      */
     protected function filterBasicCompareCondition(
         $schema,
+        $rootCondition,
         Condition $condition,
         $limit,
         $indexSuggestions,
@@ -603,6 +605,7 @@ class Pika extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $rootCondition
      * @param Condition $condition
      * @param $limit
      * @param $indexSuggestions
@@ -612,6 +615,7 @@ class Pika extends AbstractStorage
      */
     protected function filterBetweenCondition(
         $schema,
+        $rootCondition,
         Condition $condition,
         $limit,
         $indexSuggestions,
@@ -696,6 +700,7 @@ class Pika extends AbstractStorage
                         );
                     return $this->filterConditionTree(
                         $schema,
+                        $rootCondition,
                         $splitConditionTree,
                         $limit,
                         $indexSuggestions
@@ -771,6 +776,7 @@ class Pika extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $rootCondition
      * @param Condition $condition
      * @param $limit
      * @param $indexSuggestions
@@ -780,6 +786,7 @@ class Pika extends AbstractStorage
      */
     protected function filterCondition(
         $schema,
+        $rootCondition,
         Condition $condition,
         $limit,
         $indexSuggestions,
@@ -812,9 +819,9 @@ class Pika extends AbstractStorage
 
         $conditionOperator = $condition->getOperator();
         if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
-            $result = $this->filterBasicCompareCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBasicCompareCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot);
         } elseif ($conditionOperator === 'between') {
-            $result = $this->filterBetweenCondition($schema, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBetweenCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot);
         } else {
             $result = [];
         }
@@ -829,6 +836,7 @@ class Pika extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $rootCondition
      * @param ConditionTree $conditionTree
      * @param $limit
      * @param $indexSuggestions
@@ -837,6 +845,7 @@ class Pika extends AbstractStorage
      */
     protected function filterConditionTree(
         $schema,
+        $rootCondition,
         ConditionTree $conditionTree,
         $limit,
         $indexSuggestions
@@ -861,10 +870,10 @@ class Pika extends AbstractStorage
 
         foreach ($subConditions as $i => $subCondition) {
             go(function () use (
-                $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel
+                $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel, $rootCondition
             ) {
                 if ($subCondition instanceof Condition) {
-                    $subResult = $this->filterCondition($schema, $subCondition, $limit, $indexSuggestions, $isNot);
+                    $subResult = $this->filterCondition($schema, $rootCondition, $subCondition, $limit, $indexSuggestions, $isNot);
                 } else {
                     if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
                         $subResult = [];
@@ -872,6 +881,7 @@ class Pika extends AbstractStorage
                             if ($subSubCondition instanceof Condition) {
                                 $subResult = array_merge($subResult, $this->filterCondition(
                                     $schema,
+                                    $rootCondition,
                                     $subSubCondition,
                                     $limit,
                                     $indexSuggestions
@@ -879,6 +889,7 @@ class Pika extends AbstractStorage
                             } else {
                                 $subResult = array_merge($subResult, $this->filterConditionTree(
                                     $schema,
+                                    $rootCondition,
                                     $subSubCondition,
                                     $limit,
                                     $indexSuggestions
@@ -886,7 +897,7 @@ class Pika extends AbstractStorage
                             }
                         }
                     } else {
-                        $subResult = $this->filterConditionTree($schema, $subCondition, $limit, $indexSuggestions);
+                        $subResult = $this->filterConditionTree($schema, $rootCondition, $subCondition, $limit, $indexSuggestions);
                     }
                 }
 
@@ -967,10 +978,10 @@ class Pika extends AbstractStorage
     {
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
-                $indexData = $this->filterCondition($schema, $condition, $limit, $indexSuggestions);
+                $indexData = $this->filterCondition($schema, $condition, $condition, $limit, $indexSuggestions);
                 $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
             } else {
-                $indexData = $this->filterConditionTree($schema, $condition, $limit, $indexSuggestions);
+                $indexData = $this->filterConditionTree($schema, $condition, $condition, $limit, $indexSuggestions);
                 $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
                 foreach ($indexData as $i => $row) {
                     if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
