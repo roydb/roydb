@@ -855,9 +855,9 @@ class Pika extends AbstractStorage
             $subConditions = array_slice($subConditions, 0, 1);
         }
 
-        $subConditionCount = count($subConditions);
-
-        $channel = new Channel($subConditionCount);
+        $coroutineTotal = 10;
+        $coroutineCount = 0;
+        $channel = new Channel($coroutineTotal);
 
         foreach ($subConditions as $i => $subCondition) {
             //todo bugfix 连接池(临时connect连接数也不够)不够用
@@ -893,10 +893,20 @@ class Pika extends AbstractStorage
 
                 $channel->push($subResult);
             });
+
+            ++$coroutineCount;
+            if ($coroutineCount === $coroutineTotal) {
+                for ($coroutineIndex = 0; $coroutineIndex < $coroutineCount; ++$coroutineIndex) {
+                    $result = array_merge($result, $channel->pop());
+                }
+                $coroutineCount = 0;
+            }
         }
 
-        for ($i = 0; $i < $subConditionCount; ++$i) {
-            $result = array_merge($result, $channel->pop());
+        if ($coroutineCount > 0) {
+            for ($i = 0; $i < $coroutineCount; ++$i) {
+                $result = array_merge($result, $channel->pop());
+            }
         }
 
         $idMap = [];
