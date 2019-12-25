@@ -929,17 +929,17 @@ class Pika extends AbstractStorage
             return [];
         }
 
-        return $this->safeUseIndex($index, function (RedisWrapper $index) use ($idList, $schema) {
-            $rows = $index->hMGet($schema, $idList);
-
-            $rows = array_filter($rows);
-
-            array_walk($rows, function (&$row) {
-                $row = json_decode($row, true);
-            });
-
-            return $rows;
+        $rows = $this->safeUseIndex($index, function (RedisWrapper $index) use ($idList, $schema) {
+            return $index->hMGet($schema, $idList);
         });
+
+        $rows = array_filter($rows);
+
+        array_walk($rows, function (&$row) {
+            $row = json_decode($row, true);
+        });
+
+        return array_values($rows);
     }
 
     /**
