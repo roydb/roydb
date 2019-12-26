@@ -194,8 +194,9 @@ class Pika extends AbstractStorage
      */
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
+        $rootCondition = $condition;
         $condition = $this->filterConditionWithSchema($schema, $condition);
-        return $this->conditionFilter($schema, $condition, $limit, $indexSuggestions);
+        return $this->conditionFilter($schema, $rootCondition, $condition, $limit, $indexSuggestions);
     }
 
     /**
@@ -236,7 +237,7 @@ class Pika extends AbstractStorage
             return [];
         }
 
-        $itLimit = 100; //must greater than 1
+        $itLimit = 10000; //must greater than 1
         $offsetLimitCount = null;
         if (!is_null($limit)) {
             $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
@@ -466,7 +467,7 @@ class Pika extends AbstractStorage
             $skipEnd = false;
             $skipValues = [];
 
-            $itLimit = 100; //must greater than 1
+            $itLimit = 10000; //must greater than 1
             $offset = null;
             $limitCount = null;
             $offsetLimitCount = null;
@@ -524,7 +525,7 @@ class Pika extends AbstractStorage
             return $this->safeUseIndex($index, function (RedisWrapper $index) use (
                 $usingPrimaryIndex, $itStart, $itEnd, $skipStart, $skipEnd,
                 $itLimit, $offsetLimitCount, $indexName, $skipValues, $operatorHandler,
-                $conditionOperator, $field, $conditionValue
+                $conditionOperator, $field, $conditionValue, $schema, $rootCondition
             ) {
                 $indexData = [];
                 $skipFirst = false;
@@ -538,6 +539,7 @@ class Pika extends AbstractStorage
                     'LIMIT',
                     $itLimit
                 )) && isset($result[1])) {
+                    $subIndexData = [];
                     foreach ($result[1] as $key => $data) {
                         if ($skipFirst && in_array($key, [0, 1])) {
                             continue;
@@ -550,10 +552,10 @@ class Pika extends AbstractStorage
                                     $conditionOperator,
                                     ...[$arrData[$field], $conditionValue]
                                 )) {
-                                    $indexData[] = $arrData;
+                                    $subIndexData[] = $arrData;
                                 }
                             } else {
-                                $indexData = array_merge($indexData, json_decode($data, true));
+                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
                             }
                         } else {
                             $itStart = $data;
@@ -565,9 +567,21 @@ class Pika extends AbstractStorage
                         }
                     }
 
+                    //Filter by root condition
+                    if (!$usingPrimaryIndex) {
+                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                    }
+                    if ($rootCondition instanceof ConditionTree) {
+                        $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                            return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                        });
+                    }
+
+                    $indexData = array_merge($indexData, $subIndexData);
+
                     $resultCnt = count($result[1]);
 
-                    //EOF
+                    //Check EOF
                     if ($resultCnt < (2 * $itLimit)) {
                         break;
                     }
@@ -674,7 +688,7 @@ class Pika extends AbstractStorage
             }
             $itStart = '';
             $itEnd = '';
-            $itLimit = 100; //must greater than 1
+            $itLimit = 10000; //must greater than 1
             $offset = null;
             $limitCount = null;
             $offsetLimitCount = null;
@@ -713,7 +727,7 @@ class Pika extends AbstractStorage
 
             return $this->safeUseIndex($index, function (RedisWrapper $index) use (
                 $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
-                $indexName, $operatorHandler, $operandValue2, $operandValue3
+                $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
             ) {
                 $indexData = [];
                 $skipFirst = false;
@@ -727,6 +741,7 @@ class Pika extends AbstractStorage
                         'LIMIT',
                         $itLimit
                     )) && isset($result[1])) {
+                    $subIndexData = [];
                     foreach ($result[1] as $key => $data) {
                         if ($skipFirst && in_array($key, [0, 1])) {
                             continue;
@@ -739,15 +754,26 @@ class Pika extends AbstractStorage
                                     'between',
                                     ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
                                 )) {
-                                    $indexData[] = $arrData;
+                                    $subIndexData[] = $arrData;
                                 }
                             } else {
-                                $indexData = array_merge($indexData, json_decode($data, true));
+                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
                             }
                         } else {
                             $itStart = $data;
                         }
                     }
+
+                    //Filter by root condition
+                    if (!$usingPrimaryIndex) {
+                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                    }
+                    if ($rootCondition instanceof ConditionTree) {
+                        $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                            return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                        });
+                    }
+                    $indexData = array_merge($indexData, $subIndexData);
 
                     $resultCnt = count($result[1]);
 
@@ -968,26 +994,20 @@ class Pika extends AbstractStorage
      * Fetching index data by single condition, then filtering index data by all conditions.
      *
      * @param $schema
+     * @param $rootCondition
      * @param $condition
      * @param $limit
      * @param $indexSuggestions
      * @return array
      * @throws \Throwable
      */
-    protected function conditionFilter($schema, $condition, $limit, $indexSuggestions)
+    protected function conditionFilter($schema, $rootCondition, $condition, $limit, $indexSuggestions)
     {
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
-                $indexData = $this->filterCondition($schema, $condition, $condition, $limit, $indexSuggestions);
-                $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
+                $indexData = $this->filterCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions);
             } else {
-                $indexData = $this->filterConditionTree($schema, $condition, $condition, $limit, $indexSuggestions);
-                $indexData = $this->fetchAllColumnsByIndexData($indexData, $schema);
-                foreach ($indexData as $i => $row) {
-                    if (!$this->filterConditionTreeByIndexData($schema, $row, $condition)) {
-                        unset($indexData[$i]);
-                    }
-                }
+                $indexData = $this->filterConditionTree($schema, $rootCondition, $condition, $limit, $indexSuggestions);
             }
         } else {
             $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);
