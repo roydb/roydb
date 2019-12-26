@@ -194,9 +194,8 @@ class Pika extends AbstractStorage
      */
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
-        $rootCondition = $condition;
         $condition = $this->filterConditionWithSchema($schema, $condition);
-        return $this->conditionFilter($schema, $rootCondition, $condition, $limit, $indexSuggestions);
+        return $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
     }
 
     /**
