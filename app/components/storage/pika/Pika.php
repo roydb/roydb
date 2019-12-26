@@ -71,6 +71,11 @@ class Pika extends AbstractStorage
         return $result;
     }
 
+    protected function partitionByRange($schema, $start, $end)
+    {
+        //todo
+    }
+
     /**
      * @param $colName
      * @param $schema
@@ -887,6 +892,8 @@ class Pika extends AbstractStorage
         if ($logicOperator === 'and') {
             //todo select sub-condition by statistic
             $subConditions = array_slice($subConditions, 0, 1);
+
+            //todo 重写and为between
         }
 
         $coroutineTotal = 10;
