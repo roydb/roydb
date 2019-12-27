@@ -517,8 +517,6 @@ class Pika extends AbstractStorage
                 $itStart = '';
                 $itEnd = '';
 
-                $skipValues = [];
-
                 $itLimit = 10000; //must greater than 1
                 $offset = null;
                 $limitCount = null;
@@ -530,9 +528,7 @@ class Pika extends AbstractStorage
                 }
 
                 if ($conditionOperator === '=') {
-                    if ($isNot) {
-                        $skipValues[] = $conditionValue;
-                    } else {
+                    if (!$isNot) {
                         $itStart = $conditionValue;
                         $itEnd = $conditionValue;
                     }
@@ -583,7 +579,7 @@ class Pika extends AbstractStorage
 
                     $subIndexData =  $this->safeUseIndex($index, function (RedisWrapper $index) use (
                         $usingPrimaryIndex, $itStart, $itEnd,
-                        $itLimit, $indexName, $skipValues, $operatorHandler,
+                        $itLimit, $indexName, $operatorHandler,
                         $conditionOperator, $field, $conditionValue, $schema,
                         $rootCondition, $offsetLimitCount
                     ) {
@@ -603,23 +599,18 @@ class Pika extends AbstractStorage
 
                             $formattedResult = [];
                             foreach ($result[1] as $key => $data) {
+                                if ($skipFirst) {
+                                    if (in_array($key, [0, 1])) {
+                                        continue;
+                                    }
+                                }
                                 if ($key % 2 == 0) {
                                     $formattedResult[$data] = $result[1][$key + 1];
                                 }
                             }
 
-                            $resultCnt = count($formattedResult);
-                            if ($skipFirst) {
-                                if ($resultCnt > 0) {
-                                    array_pop($formattedResult);
-                                }
-                            }
-
                             foreach ($formattedResult as $key => $data) {
                                 $itStart = $key;
-                                if (in_array($key, $skipValues)) {
-                                    continue;
-                                }
                                 if (!$operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
                                     ...[$key, $conditionValue]
@@ -647,7 +638,7 @@ class Pika extends AbstractStorage
                             $indexData = array_merge($indexData, $subIndexData);
 
                             //Check EOF
-                            if ($resultCnt < $itLimit) {
+                            if (count($result[1]) < (2 * $itLimit)) {
                                 break;
                             }
 
@@ -695,10 +686,6 @@ class Pika extends AbstractStorage
                 $itStart = '';
                 $itEnd = '';
 
-                $skipStart = false;
-                $skipEnd = false;
-                $skipValues = [];
-
                 $itLimit = 10000; //must greater than 1
                 $offset = null;
                 $limitCount = null;
@@ -707,19 +694,11 @@ class Pika extends AbstractStorage
                     $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
                     $limitCount = $limit['rowcount'];
                     $offsetLimitCount = $offset + $limitCount;
-                    if ($skipStart) {
-                        $offsetLimitCount += 1;
-                    }
-                    if ($skipEnd) {
-                        $offsetLimitCount += 1;
-                    }
                 }
 
                 if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
                     if ($conditionOperator === '=') {
-                        if ($isNot) {
-                            $skipValues[] = $conditionValue;
-                        } else {
+                        if (!$isNot) {
                             $itStart = $conditionValue;
                             $itEnd = $conditionValue;
                         }
@@ -728,12 +707,10 @@ class Pika extends AbstractStorage
                             $itStart = $conditionValue;
                         } else {
                             $itEnd = $conditionValue;
-                            $skipEnd = true;
                         }
                     } elseif ($conditionOperator === '<=') {
                         if ($isNot) {
                             $itStart = $conditionValue;
-                            $skipStart = true;
                         } else {
                             $itEnd = $conditionValue;
                         }
@@ -742,12 +719,10 @@ class Pika extends AbstractStorage
                             $itEnd = $conditionValue;
                         } else {
                             $itStart = $conditionValue;
-                            $skipStart = true;
                         }
                     } elseif ($conditionOperator === '>=') {
                         if ($isNot) {
                             $itEnd = $conditionValue;
-                            $skipEnd = true;
                         } else {
                             $itStart = $conditionValue;
                         }
@@ -755,9 +730,9 @@ class Pika extends AbstractStorage
                 }
 
                 return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                    $usingPrimaryIndex, $itStart, $itEnd, $skipStart, $skipEnd,
-                    $itLimit, $offsetLimitCount, $indexName, $skipValues, $operatorHandler,
-                    $conditionOperator, $field, $conditionValue, $schema, $rootCondition
+                    $usingPrimaryIndex, $itStart, $itEnd, $itLimit, $offsetLimitCount,
+                    $indexName, $operatorHandler, $conditionOperator, $field,
+                    $conditionValue, $schema, $rootCondition
                 ) {
                     $indexData = [];
                     $skipFirst = false;
@@ -772,36 +747,43 @@ class Pika extends AbstractStorage
                             $itLimit
                         )) && isset($result[1])) {
                         $subIndexData = [];
-                        foreach ($result[1] as $key => $data) {
-                            if ($skipFirst && in_array($key, [0, 1])) {
-                                continue;
-                            }
 
-                            if ($key % 2 != 0) {
-                                if ($usingPrimaryIndex) {
-                                    $arrData = json_decode($data, true);
-                                    if ($operatorHandler->calculateOperatorExpr(
-                                            $conditionOperator,
-                                            ...[$arrData[$field], $conditionValue]
-                                    )) {
-                                        $subIndexData[] = $arrData;
-                                    }
-                                } else {
-                                    $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                        $formattedResult = [];
+                        foreach ($result[1] as $key => $data) {
+                            if ($skipFirst) {
+                                if (in_array($key, [0, 1])) {
+                                    continue;
+                                }
+                            }
+                            if ($key % 2 == 0) {
+                                $formattedResult[$data] = $result[1][$key + 1];
+                            }
+                        }
+
+                        foreach ($formattedResult as $key => $data) {
+                            $itStart = $key;
+
+                            if (!$usingPrimaryIndex) {
+                                if (!$operatorHandler->calculateOperatorExpr(
+                                    $conditionOperator,
+                                    ...[$key, $conditionValue]
+                                )) {
+                                    continue;
                                 }
                             } else {
-                                $itStart = $data;
-                                if ((!$usingPrimaryIndex)) { //todo fetch primary key from schema meta data
-                                    if (in_array($data, $skipValues)) {
-                                        continue 2;
-                                    }
-                                    if (!$operatorHandler->calculateOperatorExpr(
-                                        $conditionOperator,
-                                        ...[$data, $conditionValue]
-                                    )) {
-                                        continue 2;
-                                    }
+                                if (!$operatorHandler->calculateOperatorExpr(
+                                    $conditionOperator,
+                                    ...[$data[$field], $conditionValue]
+                                )) {
+                                    continue;
                                 }
+                            }
+
+                            if ($usingPrimaryIndex) {
+                                $arrData = json_decode($data, true);
+                                $subIndexData[] = $arrData;
+                            } else {
+                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
                             }
                         }
 
@@ -817,10 +799,8 @@ class Pika extends AbstractStorage
 
                         $indexData = array_merge($indexData, $subIndexData);
 
-                        $resultCnt = count($result[1]);
-
                         //Check EOF
-                        if ($resultCnt < (2 * $itLimit)) {
+                        if (count($result[1]) < (2 * $itLimit)) {
                             break;
                         }
 
@@ -833,13 +813,6 @@ class Pika extends AbstractStorage
                                 break;
                             }
                         }
-                    }
-
-                    if ($skipStart) {
-                        array_shift($indexData);
-                    }
-                    if ($skipEnd) {
-                        array_pop($indexData);
                     }
 
                     return array_values($indexData);
