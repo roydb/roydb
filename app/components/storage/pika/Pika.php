@@ -71,36 +71,79 @@ class Pika extends AbstractStorage
         return $result;
     }
 
-    protected function partitionByRange($schema, $start, $end)
+    /**
+     * @param $schema
+     * @param $key
+     * @param $start
+     * @param $end
+     * @return array
+     * @throws \Throwable
+     */
+    protected function partitionByRange($schema, $key, $start, $end)
     {
-        //todo fetch from schema meta data
-        $partitions = [
-            [
-                'lower' => '',
-                'upper' => 10000,
-            ],
-            [
-                'lower' => 10001,
-                'upper' => 100000,
-            ],
-            [
-                'lower' => 100000,
-                'upper' => '',
-            ],
-        ];
+        $schemaMeta = $this->getSchemaMetaData($schema);
+        $partition = $schemaMeta['partition'];
+        if ($partition['key'] !== $key) {
+            return null;
+        }
+
+        $ranges = $partition['range'];
 
         $startPartitionIndex = null;
         $endPartitionIndex = null;
-        foreach ($partitions as $partitionIndex => $partition) {
-            if (($partition['lower'] <= $start) && ($partition['upper'] >= $start)) {
-                $startPartitionIndex = $partitionIndex;
+        foreach ($ranges as $rangeIndex => $range) {
+            if ((($range['lower'] === '') || ($range['lower'] <= $start)) &&
+                (($range['upper'] === '') || ($range['upper'] >= $start))
+            ) {
+                $startPartitionIndex = $rangeIndex;
             }
-            if (($partition['lower'] <= $end) && ($partition['upper'] >= $end)) {
-                $endPartitionIndex = $partitionIndex;
+            if ((($range['lower'] === '') || ($range['lower'] <= $end)) &&
+                (($range['upper'] === '') || ($range['upper'] >= $end))
+            ) {
+                $endPartitionIndex = $rangeIndex;
             }
         }
 
+        if (is_null($startPartitionIndex)) {
+            throw new \Exception('Invalid start partition index');
+        }
+
+        if (is_null($endPartitionIndex)) {
+            throw new \Exception('Invalid end partition index');
+        }
+
         return [$startPartitionIndex, $endPartitionIndex];
+    }
+
+    /**
+     * @param $schema
+     * @param $key
+     * @param $start
+     * @param $end
+     * @return int|mixed
+     * @throws \Throwable
+     */
+    protected function countPartitionByRange($schema, $key, $start, $end)
+    {
+        $partitions = $this->partitionByRange($schema, $key, $start, $end);
+
+        if (is_null($partitions)) {
+            return 0;
+        }
+
+        list($startPartitionIndex, $endPartitionIndex) = $partitions;
+
+        return ($endPartitionIndex - $startPartitionIndex) + 1;
+    }
+
+    /**
+     * @param $indexName
+     * @param $partitionIndex
+     * @return string
+     */
+    protected function getIndexPartitionName($indexName, $partitionIndex)
+    {
+        return $indexName . '.partition.' . ((string)$partitionIndex);
     }
 
     /**
