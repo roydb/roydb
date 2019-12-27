@@ -73,7 +73,34 @@ class Pika extends AbstractStorage
 
     protected function partitionByRange($schema, $start, $end)
     {
-        //todo
+        //todo fetch from schema meta data
+        $partitions = [
+            [
+                'lower' => '',
+                'upper' => 10000,
+            ],
+            [
+                'lower' => 10001,
+                'upper' => 100000,
+            ],
+            [
+                'lower' => 100000,
+                'upper' => '',
+            ],
+        ];
+
+        $startPartitionIndex = null;
+        $endPartitionIndex = null;
+        foreach ($partitions as $partitionIndex => $partition) {
+            if (($partition['lower'] <= $start) && ($partition['upper'] >= $start)) {
+                $startPartitionIndex = $partitionIndex;
+            }
+            if (($partition['lower'] <= $end) && ($partition['upper'] >= $end)) {
+                $endPartitionIndex = $partitionIndex;
+            }
+        }
+
+        return [$startPartitionIndex, $endPartitionIndex];
     }
 
     /**
