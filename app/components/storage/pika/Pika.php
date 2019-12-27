@@ -959,6 +959,8 @@ class Pika extends AbstractStorage
                             continue;
                         }
 
+                        //todo bugfix 参照basic compare
+
                         if ($key % 2 != 0) {
                             if ($usingPrimaryIndex) {
                                 $arrData = json_decode($data, true);
@@ -1101,7 +1103,7 @@ class Pika extends AbstractStorage
             //todo select sub-condition by statistic
             $subConditions = array_slice($subConditions, 0, 1);
 
-            //todo 重写and为between
+            //todo 重写and为between ?
         }
 
         $coroutineTotal = 10;
