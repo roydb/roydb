@@ -92,15 +92,16 @@ class Pika extends AbstractStorage
         $startPartitionIndex = null;
         $endPartitionIndex = null;
         foreach ($ranges as $rangeIndex => $range) {
-            if ((($range['lower'] === '') || ($range['lower'] <= $start)) &&
-                (($range['upper'] === '') || ($range['upper'] >= $start))
+            if ((($range['lower'] === '') || (($start !== '') && ($range['lower'] <= $start))) &&
+                (($range['upper'] === '') || (($start === '') || ($range['upper'] >= $start)))
             ) {
                 $startPartitionIndex = $rangeIndex;
             }
-            if ((($range['lower'] === '') || ($range['lower'] <= $end)) &&
-                (($range['upper'] === '') || ($range['upper'] >= $end))
+            if ((($range['lower'] === '') || (($end === '') || ($range['lower'] <= $end))) &&
+                (($range['upper'] === '') || (($end !== '') && ($range['upper'] >= $end)))
             ) {
                 $endPartitionIndex = $rangeIndex;
+                break;
             }
         }
 
@@ -512,52 +513,22 @@ class Pika extends AbstractStorage
                 $conditionValue = $operandValue1;
             }
 
-            $index = false;
-            $indexName = null;
-            $usingPrimaryIndex = false;
-            $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
-            if (!is_null($suggestIndex)) {
-                $index = $this->openBtree($suggestIndex['indexName']);
-                if ($index !== false) {
-                    $indexName = $suggestIndex['indexName'];
-                    $usingPrimaryIndex = $suggestIndex['primaryIndex'];
-                }
-            }
-            if ($index === false) {
-                $index = $this->openBtree($schema . '.' . $field);
-                if ($index !== false) {
-                    $indexName = $schema . '.' . $field;
-                }
-            }
-            if ($index === false) {
-                $usingPrimaryIndex = true;
-                $index = $this->openBtree($schema);
-                $indexName = $schema;
-            }
-            $itStart = '';
-            $itEnd = '';
+            if ($this->countPartitionByRange($schema, $field, '', '') > 0) {
+                $itStart = '';
+                $itEnd = '';
 
-            $skipStart = false;
-            $skipEnd = false;
-            $skipValues = [];
+                $skipValues = [];
 
-            $itLimit = 10000; //must greater than 1
-            $offset = null;
-            $limitCount = null;
-            $offsetLimitCount = null;
-            if (!is_null($limit)) {
-                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                $itLimit = $limitCount = $limit['rowcount'];
-                $offsetLimitCount = $offset + $limitCount;
-                if ($skipStart) {
-                    $offsetLimitCount += 1;
+                $itLimit = 10000; //must greater than 1
+                $offset = null;
+                $limitCount = null;
+                $offsetLimitCount = null;
+                if (!is_null($limit)) {
+                    $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                    $limitCount = $limit['rowcount'];
+                    $offsetLimitCount = $offset + $limitCount;
                 }
-                if ($skipEnd) {
-                    $offsetLimitCount += 1;
-                }
-            }
 
-            if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
                 if ($conditionOperator === '=') {
                     if ($isNot) {
                         $skipValues[] = $conditionValue;
@@ -570,12 +541,10 @@ class Pika extends AbstractStorage
                         $itStart = $conditionValue;
                     } else {
                         $itEnd = $conditionValue;
-                        $skipEnd = true;
                     }
                 } elseif ($conditionOperator === '<=') {
                     if ($isNot) {
                         $itStart = $conditionValue;
-                        $skipStart = true;
                     } else {
                         $itEnd = $conditionValue;
                     }
@@ -584,85 +553,113 @@ class Pika extends AbstractStorage
                         $itEnd = $conditionValue;
                     } else {
                         $itStart = $conditionValue;
-                        $skipStart = true;
                     }
                 } elseif ($conditionOperator === '>=') {
                     if ($isNot) {
                         $itEnd = $conditionValue;
-                        $skipEnd = true;
                     } else {
                         $itStart = $conditionValue;
                     }
                 }
-            }
 
-            return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                $usingPrimaryIndex, $itStart, $itEnd, $skipStart, $skipEnd,
-                $itLimit, $offsetLimitCount, $indexName, $skipValues, $operatorHandler,
-                $conditionOperator, $field, $conditionValue, $schema, $rootCondition
-            ) {
+                $partitions = $this->partitionByRange($schema, $field, $itStart, $itEnd);
+
+                list($partitionStartIndex, $partitionEndIndex) = $partitions;
+
                 $indexData = [];
-                $skipFirst = false;
-                while (($result = $index->rawCommand(
-                    'pkhscanrange',
-                    $index->_prefix($indexName),
-                    $itStart,
-                    $itEnd,
-                    'MATCH',
-                    '*',
-                    'LIMIT',
-                    $itLimit
-                )) && isset($result[1])) {
-                    $subIndexData = [];
-                    foreach ($result[1] as $key => $data) {
-                        if ($skipFirst && in_array($key, [0, 1])) {
-                            continue;
-                        }
 
-                        if ($key % 2 != 0) {
-                            if ($usingPrimaryIndex) {
-                                $arrData = json_decode($data, true);
-                                if (($field === 'id') || $operatorHandler->calculateOperatorExpr(
+                $usingPrimaryIndex = ($field === 'id'); //todo fetch primary key from schema meta data
+
+                for ($partitionIndex = $partitionStartIndex; $partitionIndex <= $partitionEndIndex; ++$partitionIndex) {
+                    $indexName = $this->getIndexPartitionName(
+                        $usingPrimaryIndex ? $schema : ($schema . '.' . $field),
+                        $partitionIndex
+                    );
+
+                    $index = $this->openBtree($indexName);
+                    if ($index === false) {
+                        continue;
+                    }
+
+                    $subIndexData =  $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                        $usingPrimaryIndex, $itStart, $itEnd,
+                        $itLimit, $indexName, $skipValues, $operatorHandler,
+                        $conditionOperator, $field, $conditionValue, $schema,
+                        $rootCondition, $offsetLimitCount
+                    ) {
+                        $indexData = [];
+                        $skipFirst = false;
+                        while (($result = $index->rawCommand(
+                                'pkhscanrange',
+                                $index->_prefix($indexName),
+                                $itStart,
+                                $itEnd,
+                                'MATCH',
+                                '*',
+                                'LIMIT',
+                                $itLimit
+                            )) && isset($result[1])) {
+                            $subIndexData = [];
+
+                            $formattedResult = [];
+                            foreach ($result[1] as $key => $data) {
+                                if ($key % 2 == 0) {
+                                    $formattedResult[$data] = $result[1][$key + 1];
+                                }
+                            }
+
+                            $resultCnt = count($formattedResult);
+                            if ($skipFirst) {
+                                if ($resultCnt > 0) {
+                                    array_pop($formattedResult);
+                                }
+                            }
+
+                            foreach ($formattedResult as $key => $data) {
+                                $itStart = $key;
+                                if (in_array($key, $skipValues)) {
+                                    continue;
+                                }
+                                if (!$operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
-                                    ...[$arrData[$field], $conditionValue]
+                                    ...[$key, $conditionValue]
                                 )) {
+                                    continue;
+                                }
+                                if ($usingPrimaryIndex) {
+                                    $arrData = json_decode($data, true);
                                     $subIndexData[] = $arrData;
+                                } else {
+                                    $subIndexData = array_merge($subIndexData, json_decode($data, true));
                                 }
-                            } else {
-                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
                             }
-                        } else {
-                            $itStart = $data;
-                            if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
-                                if (in_array($data, $skipValues)) {
-                                    continue 2;
-                                }
+
+                            //Filter by root condition
+                            if (!$usingPrimaryIndex) {
+                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            }
+                            if ($rootCondition instanceof ConditionTree) {
+                                $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                                    return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                                });
+                            }
+
+                            $indexData = array_merge($indexData, $subIndexData);
+
+                            //Check EOF
+                            if ($resultCnt < $itLimit) {
+                                break;
+                            }
+
+                            if (!$skipFirst) {
+                                $skipFirst = true;
                             }
                         }
-                    }
 
-                    //Filter by root condition
-                    if (!$usingPrimaryIndex) {
-                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
-                    }
-                    if ($rootCondition instanceof ConditionTree) {
-                        $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
-                            return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
-                        });
-                    }
+                        return array_values($indexData);
+                    });
 
                     $indexData = array_merge($indexData, $subIndexData);
-
-                    $resultCnt = count($result[1]);
-
-                    //Check EOF
-                    if ($resultCnt < (2 * $itLimit)) {
-                        break;
-                    }
-
-                    if (!$skipFirst) {
-                        $skipFirst = true;
-                    }
 
                     if (!is_null($offsetLimitCount)) {
                         if (count($indexData) >= $offsetLimitCount) {
@@ -671,15 +668,183 @@ class Pika extends AbstractStorage
                     }
                 }
 
-                if ($skipStart) {
-                    array_shift($indexData);
+                return array_values($indexData);
+            } else {
+                $index = false;
+                $indexName = null;
+                $usingPrimaryIndex = false;
+                $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
+                if (!is_null($suggestIndex)) {
+                    $index = $this->openBtree($suggestIndex['indexName']);
+                    if ($index !== false) {
+                        $indexName = $suggestIndex['indexName'];
+                        $usingPrimaryIndex = $suggestIndex['primaryIndex'];
+                    }
                 }
-                if ($skipEnd) {
-                    array_pop($indexData);
+                if ($index === false) {
+                    $index = $this->openBtree($schema . '.' . $field);
+                    if ($index !== false) {
+                        $indexName = $schema . '.' . $field;
+                    }
+                }
+                if ($index === false) {
+                    $usingPrimaryIndex = true;
+                    $index = $this->openBtree($schema);
+                    $indexName = $schema;
+                }
+                $itStart = '';
+                $itEnd = '';
+
+                $skipStart = false;
+                $skipEnd = false;
+                $skipValues = [];
+
+                $itLimit = 10000; //must greater than 1
+                $offset = null;
+                $limitCount = null;
+                $offsetLimitCount = null;
+                if (!is_null($limit)) {
+                    $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                    $limitCount = $limit['rowcount'];
+                    $offsetLimitCount = $offset + $limitCount;
+                    if ($skipStart) {
+                        $offsetLimitCount += 1;
+                    }
+                    if ($skipEnd) {
+                        $offsetLimitCount += 1;
+                    }
                 }
 
-                return array_values($indexData);
-            });
+                if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
+                    if ($conditionOperator === '=') {
+                        if ($isNot) {
+                            $skipValues[] = $conditionValue;
+                        } else {
+                            $itStart = $conditionValue;
+                            $itEnd = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '<') {
+                        if ($isNot) {
+                            $itStart = $conditionValue;
+                        } else {
+                            $itEnd = $conditionValue;
+                            $skipEnd = true;
+                        }
+                    } elseif ($conditionOperator === '<=') {
+                        if ($isNot) {
+                            $itStart = $conditionValue;
+                            $skipStart = true;
+                        } else {
+                            $itEnd = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '>') {
+                        if ($isNot) {
+                            $itEnd = $conditionValue;
+                        } else {
+                            $itStart = $conditionValue;
+                            $skipStart = true;
+                        }
+                    } elseif ($conditionOperator === '>=') {
+                        if ($isNot) {
+                            $itEnd = $conditionValue;
+                            $skipEnd = true;
+                        } else {
+                            $itStart = $conditionValue;
+                        }
+                    }
+                }
+
+                return $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                    $usingPrimaryIndex, $itStart, $itEnd, $skipStart, $skipEnd,
+                    $itLimit, $offsetLimitCount, $indexName, $skipValues, $operatorHandler,
+                    $conditionOperator, $field, $conditionValue, $schema, $rootCondition
+                ) {
+                    $indexData = [];
+                    $skipFirst = false;
+                    while (($result = $index->rawCommand(
+                            'pkhscanrange',
+                            $index->_prefix($indexName),
+                            $itStart,
+                            $itEnd,
+                            'MATCH',
+                            '*',
+                            'LIMIT',
+                            $itLimit
+                        )) && isset($result[1])) {
+                        $subIndexData = [];
+                        foreach ($result[1] as $key => $data) {
+                            if ($skipFirst && in_array($key, [0, 1])) {
+                                continue;
+                            }
+
+                            if ($key % 2 != 0) {
+                                if ($usingPrimaryIndex) {
+                                    $arrData = json_decode($data, true);
+                                    if ($operatorHandler->calculateOperatorExpr(
+                                            $conditionOperator,
+                                            ...[$arrData[$field], $conditionValue]
+                                    )) {
+                                        $subIndexData[] = $arrData;
+                                    }
+                                } else {
+                                    $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                }
+                            } else {
+                                $itStart = $data;
+                                if ((!$usingPrimaryIndex)) { //todo fetch primary key from schema meta data
+                                    if (in_array($data, $skipValues)) {
+                                        continue 2;
+                                    }
+                                    if (!$operatorHandler->calculateOperatorExpr(
+                                        $conditionOperator,
+                                        ...[$data, $conditionValue]
+                                    )) {
+                                        continue 2;
+                                    }
+                                }
+                            }
+                        }
+
+                        //Filter by root condition
+                        if (!$usingPrimaryIndex) {
+                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                        }
+                        if ($rootCondition instanceof ConditionTree) {
+                            $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                                return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                            });
+                        }
+
+                        $indexData = array_merge($indexData, $subIndexData);
+
+                        $resultCnt = count($result[1]);
+
+                        //Check EOF
+                        if ($resultCnt < (2 * $itLimit)) {
+                            break;
+                        }
+
+                        if (!$skipFirst) {
+                            $skipFirst = true;
+                        }
+
+                        if (!is_null($offsetLimitCount)) {
+                            if (count($indexData) >= $offsetLimitCount) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if ($skipStart) {
+                        array_shift($indexData);
+                    }
+                    if ($skipEnd) {
+                        array_pop($indexData);
+                    }
+
+                    return array_values($indexData);
+                });
+            }
         } elseif ($operandType1 === 'const' && $operandType2 === 'const') {
             if ($operatorHandler->calculateOperatorExpr($conditionOperator, ...[$operandValue1, $operandValue2])) {
                 return $this->fetchAllPrimaryIndexData($schema, $limit);

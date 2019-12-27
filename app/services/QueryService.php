@@ -16,14 +16,50 @@ class QueryService extends BaseService
 {
     public function select()
     {
+//        $partitions = [];
+//        $partitions[] = [
+//            'lower' => '',
+//            'upper' => 0,
+//        ];
+//        for ($start = 1, $end = 10000; $end <= 100000; $start = $start + 10000, $end = $end + 10000) {
+//            $partitions[] = [
+//                'lower' => $start,
+//                'upper' => $end,
+//            ];
+//        }
+//        $partitions[] = [
+//            'lower' => 100001,
+//            'upper' => '',
+//        ];
+//
 //        $redis = RedisPool::pick('pika');
 //        try {
-//            for ($i = 0; $i < 1000000; ++$i) {
+//            for ($i = 1; $i < 100000; ++$i) {
+//                $targetPartitionIndex = null;
+//                foreach ($partitions as $partitionIndex => $partition) {
+//                    if ((($partition['lower'] === '') || ($i >= $partition['lower'])) &&
+//                        (($partition['upper'] === '') || ($i <= $partition['upper']))
+//                    ) {
+//                        $targetPartitionIndex = $partitionIndex;
+//                        break;
+//                    }
+//                }
+//
 //                $firstAlphabet = chr(ord('a') + ($i % 25));
 //                $redis->hSet('test2.name', $firstAlphabet . 'oo', json_encode([['id' => $i]]));
 //                $redis->hSet('test2', $i, json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo']));
+//                $redis->hSet(
+//                    'test2.partition.' . ((string)$targetPartitionIndex),
+//                    $i,
+//                    json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo'])
+//                );
 //                $redis->hSet('test1.name', $firstAlphabet . 'oo', json_encode([['id' => $i]]));
 //                $redis->hSet('test1', $i, json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo']));
+//                $redis->hSet(
+//                    'test1.partition.' . ((string)$targetPartitionIndex),
+//                    $i,
+//                    json_encode(['id' => $i, 'type' => 1, 'name' => $firstAlphabet . 'oo'])
+//                );
 //            }
 //
 //            $redis->hSet('meta.schema', 'test1', json_encode([
@@ -60,20 +96,7 @@ class QueryService extends BaseService
 //                ],
 //                'partition' => [
 //                    'key' => 'id',
-//                    'range' => [
-//                        [
-//                            'lower' => '',
-//                            'upper' => 10000,
-//                        ],
-//                        [
-//                            'lower' => 10001,
-//                            'upper' => 100000,
-//                        ],
-//                        [
-//                            'lower' => 100000,
-//                            'upper' => '',
-//                        ],
-//                    ]
+//                    'range' => $partitions,
 //                ],
 //            ]));
 //            $redis->hSet('meta.schema', 'test2', json_encode([
@@ -110,20 +133,7 @@ class QueryService extends BaseService
 //                ],
 //                'partition' => [
 //                    'key' => 'id',
-//                    'range' => [
-//                        [
-//                            'lower' => '',
-//                            'upper' => 10000,
-//                        ],
-//                        [
-//                            'lower' => 10001,
-//                            'upper' => 100000,
-//                        ],
-//                        [
-//                            'lower' => 100000,
-//                            'upper' => '',
-//                        ],
-//                    ]
+//                    'range' => $partitions,
 //                ],
 //            ]));
 //            var_dump($redis->hGet('meta.schema', 'test1'));
