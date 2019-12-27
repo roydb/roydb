@@ -37,6 +37,7 @@ class RulesBasedOptimizer
 
     protected function setStorageGetLimit()
     {
+        //todo 扩大适用范围，因为conditionFilter的时候会过滤rootCondition
         /** @var QueryPlan $queryPlan */
         $queryPlan = $this->plan->getExecutePlan();
         $limit = $queryPlan->getLimit();
