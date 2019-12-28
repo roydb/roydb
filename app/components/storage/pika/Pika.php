@@ -771,17 +771,17 @@ class Pika extends AbstractStorage
                                     continue;
                                 }
                             } else {
+                                $arrData = json_decode($data, true);
                                 if (!$operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
-                                    ...[$data[$field], $conditionValue]
+                                    ...[$arrData[$field], $conditionValue]
                                 )) {
                                     continue;
                                 }
                             }
 
                             if ($usingPrimaryIndex) {
-                                $arrData = json_decode($data, true);
-                                $subIndexData[] = $arrData;
+                                $subIndexData[] = json_decode($data, true);
                             } else {
                                 $subIndexData = array_merge($subIndexData, json_decode($data, true));
                             }
@@ -906,7 +906,7 @@ class Pika extends AbstractStorage
             $offsetLimitCount = null;
             if (!is_null($limit)) {
                 $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                $itLimit = $limitCount = $limit['rowcount'];
+                $limitCount = $limit['rowcount'];
                 $offsetLimitCount = $offset + $limitCount;
             }
 
@@ -943,6 +943,7 @@ class Pika extends AbstractStorage
             ) {
                 $indexData = [];
                 $skipFirst = false;
+
                 while (($result = $index->rawCommand(
                         'pkhscanrange',
                         $index->_prefix($indexName),
@@ -954,27 +955,44 @@ class Pika extends AbstractStorage
                         $itLimit
                     )) && isset($result[1])) {
                     $subIndexData = [];
+
+                    $formattedResult = [];
                     foreach ($result[1] as $key => $data) {
-                        if ($skipFirst && in_array($key, [0, 1])) {
-                            continue;
+                        if ($skipFirst) {
+                            if (in_array($key, [0, 1])) {
+                                continue;
+                            }
                         }
+                        if ($key % 2 == 0) {
+                            $formattedResult[$data] = $result[1][$key + 1];
+                        }
+                    }
 
-                        //todo bugfix 参照basic compare
+                    foreach ($formattedResult as $key => $data) {
+                        $itStart = $key;
 
-                        if ($key % 2 != 0) {
-                            if ($usingPrimaryIndex) {
-                                $arrData = json_decode($data, true);
-                                if (($operandValue1 === 'id') || $operatorHandler->calculateOperatorExpr( //todo fetch primary key from schema meta data
+                        //todo bugfix 查询结果不对
+                        if ($usingPrimaryIndex) {
+                            $arrData = json_decode($data, true);
+                            if (!$operatorHandler->calculateOperatorExpr(
                                     'between',
                                     ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
                                 )) {
-                                    $subIndexData[] = $arrData;
-                                }
-                            } else {
-                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                continue;
                             }
                         } else {
-                            $itStart = $data;
+                            if (!$operatorHandler->calculateOperatorExpr(
+                                'between',
+                                ...[$key, $operandValue2, $operandValue3]
+                            )) {
+                                continue;
+                            }
+                        }
+
+                        if ($usingPrimaryIndex) {
+                            $subIndexData[] = json_decode($data, true);
+                        } else {
+                            $subIndexData = array_merge($subIndexData, json_decode($data, true));
                         }
                     }
 
