@@ -848,6 +848,8 @@ class Pika extends AbstractStorage
         $isNot
     )
     {
+        //todo using partition
+
         $operatorHandler = new OperatorHandler($isNot);
         $operands = $condition->getOperands();
 
