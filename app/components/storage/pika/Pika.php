@@ -137,6 +137,11 @@ class Pika extends AbstractStorage
         return ($endPartitionIndex - $startPartitionIndex) + 1;
     }
 
+    protected function countPartitionByCondition($condition)
+    {
+        //todo
+    }
+
     /**
      * @param $indexName
      * @param $partitionIndex
@@ -1180,8 +1185,6 @@ class Pika extends AbstractStorage
                 $result = array_merge($result, $channel->pop());
             }
         }
-
-        //todo bugfix too much records from one condition
 
         $idMap = [];
         foreach ($result as $i => $row) {
