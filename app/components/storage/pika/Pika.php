@@ -137,9 +137,169 @@ class Pika extends AbstractStorage
         return ($endPartitionIndex - $startPartitionIndex) + 1;
     }
 
-    protected function countPartitionByCondition($condition)
+    /**
+     * @param $schema
+     * @param $condition
+     * @param bool $isNot
+     * @return float|int|mixed
+     * @throws \Throwable
+     */
+    protected function countPartitionByCondition($schema, $condition, bool $isNot = false)
     {
-        //todo
+        if ($condition instanceof ConditionTree) {
+            $logicOperator = $condition->getLogicOperator();
+            $subConditions = $condition->getSubConditions();
+            $isNot = $isNot || ($logicOperator === 'not');
+
+            if ($logicOperator === 'and') {
+                $costList = [];
+                foreach ($subConditions as $subCondition) {
+                    $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                }
+                return min($costList);
+            } elseif ($logicOperator === 'or') {
+                $costList = [];
+                foreach ($subConditions as $subCondition) {
+                    $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                }
+                return array_sum($costList);
+            } elseif ($logicOperator === 'not') {
+                $costList = [];
+                foreach ($subConditions as $subCondition) {
+                    if ($subCondition instanceof Condition) {
+                        $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                    } else {
+                        if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
+                            foreach ($subCondition as $subSubCondition) {
+                                $costList[] = $this->countPartitionByCondition($schema, $subSubCondition);
+                            }
+                        } else {
+                            $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                        }
+                    }
+                }
+                return min($costList);
+            }
+
+            return 0;
+        }
+
+        if ($condition instanceof Condition) {
+            $cost = 0;
+
+            $conditionOperator = $condition->getOperator();
+            $operands = $condition->getOperands();
+
+            if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
+                $operandValue1 = $operands[0]->getValue();
+                $operandType1 = $operands[0]->getType();
+                if ($operandType1 === 'colref') {
+                    if (strpos($operandValue1, '.')) {
+                        list(, $operandValue1) = explode('.', $operandValue1);
+                    }
+                }
+                $operandValue2 = $operands[1]->getValue();
+                $operandType2 = $operands[1]->getType();
+                if ($operandType2 === 'colref') {
+                    if (strpos($operandValue2, '.')) {
+                        list(, $operandValue2) = explode('.', $operandValue2);
+                    }
+                }
+
+                if ((($operandType1 === 'colref') && ($operandType2 === 'const')) ||
+                    (($operandType1 === 'const') && ($operandType2 === 'colref'))
+                ) {
+                    if ((($operandType1 === 'colref') && ($operandType2 === 'const'))) {
+                        $field = $operandValue1;
+                        $conditionValue = $operandValue2;
+                    } else {
+                        $field = $operandValue2;
+                        $conditionValue = $operandValue1;
+                    }
+
+                    $itStart = '';
+                    $itEnd = '';
+
+                    if ($conditionOperator === '=') {
+                        if (!$isNot) {
+                            $itStart = $conditionValue;
+                            $itEnd = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '<') {
+                        if ($isNot) {
+                            $itStart = $conditionValue;
+                        } else {
+                            $itEnd = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '<=') {
+                        if ($isNot) {
+                            $itStart = $conditionValue;
+                        } else {
+                            $itEnd = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '>') {
+                        if ($isNot) {
+                            $itEnd = $conditionValue;
+                        } else {
+                            $itStart = $conditionValue;
+                        }
+                    } elseif ($conditionOperator === '>=') {
+                        if ($isNot) {
+                            $itEnd = $conditionValue;
+                        } else {
+                            $itStart = $conditionValue;
+                        }
+                    }
+
+                    $cost = $this->countPartitionByRange($schema, $field, $itStart, $itEnd);
+                }
+            } elseif ($conditionOperator === 'between') {
+                $operandValue1 = $operands[0]->getValue();
+                $operandType1 = $operands[0]->getType();
+                if ($operandType1 === 'colref') {
+                    if (strpos($operandValue1, '.')) {
+                        list(, $operandValue1) = explode('.', $operandValue1);
+                    }
+                }
+
+                $operandValue2 = $operands[1]->getValue();
+                $operandType2 = $operands[1]->getType();
+                if ($operandType2 === 'colref') {
+                    if (strpos($operandValue2, '.')) {
+                        list(, $operandValue2) = explode('.', $operandValue2);
+                    }
+                }
+
+                $operandValue3 = $operands[2]->getValue();
+                $operandType3 = $operands[2]->getType();
+                if ($operandType3 === 'colref') {
+                    if (strpos($operandValue3, '.')) {
+                        list(, $operandValue3) = explode('.', $operandValue3);
+                    }
+                }
+
+                if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
+                    if ($isNot) {
+                        $itStart = '';
+                        $itEnd = $operands[1];
+                        $cost = $this->countPartitionByRange($schema, $operandValue1, $itStart, $itEnd);
+
+                        $itStart = $operands[2];
+                        $itEnd = '';
+                        $cost += $this->countPartitionByRange($schema, $operandValue1, $itStart, $itEnd);
+                    } else {
+                        $itStart = $operandValue2;
+                        $itEnd = $operandValue3;
+
+                        $cost = $this->countPartitionByRange($schema, $operandValue1, $itStart, $itEnd);
+                    }
+                }
+            }
+
+            return $cost;
+        }
+
+        return 0;
     }
 
     /**
@@ -1105,6 +1265,7 @@ class Pika extends AbstractStorage
      * @param ConditionTree $conditionTree
      * @param $limit
      * @param $indexSuggestions
+     * @param bool $isNot
      * @return array
      * @throws \Throwable
      */
@@ -1113,20 +1274,39 @@ class Pika extends AbstractStorage
         $rootCondition,
         ConditionTree $conditionTree,
         $limit,
-        $indexSuggestions
+        $indexSuggestions,
+        bool $isNot = false
     )
     {
         $logicOperator = $conditionTree->getLogicOperator();
 
-        $isNot = $logicOperator === 'not';
+        $isNot = ($logicOperator === 'not') || $isNot;
 
         $result = [];
 
         $subConditions = $conditionTree->getSubConditions();
 
         if ($logicOperator === 'and') {
-            //todo select sub-condition by statistic
-            $subConditions = array_slice($subConditions, 0, 1);
+            $costList = [];
+            foreach ($subConditions as $subCondition) {
+                if ($subCondition instanceof Condition) {
+                    $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                } else {
+                    if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
+                        foreach ($subCondition as $subSubCondition) {
+                            $costList[] = $this->countPartitionByCondition($schema, $subSubCondition);
+                        }
+                    } else {
+                        foreach ($subCondition as $subSubCondition) {
+                            $costList[] = $this->countPartitionByCondition($schema, $subSubCondition, $isNot);
+                        }
+                    }
+                }
+            }
+
+            $minCost = min($costList);
+            $minCostConditionIndex = array_search($minCost, $costList);
+            $subConditions = [$subConditions[$minCostConditionIndex]];
 
             //todo 重写and为between ?
         }
@@ -1140,7 +1320,14 @@ class Pika extends AbstractStorage
                 $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel, $rootCondition
             ) {
                 if ($subCondition instanceof Condition) {
-                    $subResult = $this->filterCondition($schema, $rootCondition, $subCondition, $limit, $indexSuggestions, $isNot);
+                    $subResult = $this->filterCondition(
+                        $schema,
+                        $rootCondition,
+                        $subCondition,
+                        $limit,
+                        $indexSuggestions,
+                        $isNot
+                    );
                 } else {
                     if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
                         $subResult = [];
@@ -1164,7 +1351,14 @@ class Pika extends AbstractStorage
                             }
                         }
                     } else {
-                        $subResult = $this->filterConditionTree($schema, $rootCondition, $subCondition, $limit, $indexSuggestions);
+                        $subResult = $this->filterConditionTree(
+                            $schema,
+                            $rootCondition,
+                            $subCondition,
+                            $limit,
+                            $indexSuggestions,
+                            $isNot
+                        );
                     }
                 }
 
