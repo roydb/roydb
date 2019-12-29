@@ -1138,7 +1138,6 @@ class Pika extends AbstractStorage
                     foreach ($formattedResult as $key => $data) {
                         $itStart = $key;
 
-                        //todo bugfix 查询结果不对
                         if ($usingPrimaryIndex) {
                             $arrData = json_decode($data, true);
                             if (!$operatorHandler->calculateOperatorExpr(
