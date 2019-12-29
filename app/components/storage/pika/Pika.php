@@ -731,6 +731,7 @@ class Pika extends AbstractStorage
 
                 $usingPrimaryIndex = ($field === 'id'); //todo fetch primary key from schema meta data
 
+                //todo coroutine
                 for ($partitionIndex = $partitionStartIndex; $partitionIndex <= $partitionEndIndex; ++$partitionIndex) {
                     $indexName = $this->getIndexPartitionName(
                         $usingPrimaryIndex ? $schema : ($schema . '.' . $field),
