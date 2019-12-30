@@ -731,96 +731,126 @@ class Pika extends AbstractStorage
 
                 $usingPrimaryIndex = ($field === 'id'); //todo fetch primary key from schema meta data
 
-                //todo coroutine
+                $coroutineTotal = 3;
+                $coroutineCount = 0;
+                $channel = new Channel($coroutineTotal);
+
                 for ($partitionIndex = $partitionStartIndex; $partitionIndex <= $partitionEndIndex; ++$partitionIndex) {
-                    $indexName = $this->getIndexPartitionName(
-                        $usingPrimaryIndex ? $schema : ($schema . '.' . $field),
-                        $partitionIndex
-                    );
-
-                    $index = $this->openBtree($indexName);
-                    if ($index === false) {
-                        continue;
-                    }
-
-                    $subIndexData =  $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                        $usingPrimaryIndex, $itStart, $itEnd,
-                        $itLimit, $indexName, $operatorHandler,
-                        $conditionOperator, $field, $conditionValue, $schema,
-                        $rootCondition, $offsetLimitCount
+                    go(function () use (
+                        $usingPrimaryIndex, $schema, $field, $partitionIndex,
+                        $itStart, $itEnd, $itLimit, $operatorHandler,
+                        $conditionOperator, $conditionValue, $rootCondition,
+                        $offsetLimitCount, $channel
                     ) {
-                        $indexData = [];
-                        $skipFirst = false;
-                        while (($result = $index->rawCommand(
-                                'pkhscanrange',
-                                $index->_prefix($indexName),
-                                $itStart,
-                                $itEnd,
-                                'MATCH',
-                                '*',
-                                'LIMIT',
-                                $itLimit
-                            )) && isset($result[1])) {
-                            $subIndexData = [];
+                        $indexName = $this->getIndexPartitionName(
+                            $usingPrimaryIndex ? $schema : ($schema . '.' . $field),
+                            $partitionIndex
+                        );
 
-                            $formattedResult = [];
-                            foreach ($result[1] as $key => $data) {
-                                if ($skipFirst) {
-                                    if (in_array($key, [0, 1])) {
-                                        continue;
-                                    }
-                                }
-                                if ($key % 2 == 0) {
-                                    $formattedResult[$data] = $result[1][$key + 1];
-                                }
-                            }
-
-                            foreach ($formattedResult as $key => $data) {
-                                $itStart = $key;
-                                if (!$operatorHandler->calculateOperatorExpr(
-                                    $conditionOperator,
-                                    ...[$key, $conditionValue]
-                                )) {
-                                    continue;
-                                }
-                                if ($usingPrimaryIndex) {
-                                    $arrData = json_decode($data, true);
-                                    $subIndexData[] = $arrData;
-                                } else {
-                                    $subIndexData = array_merge($subIndexData, json_decode($data, true));
-                                }
-                            }
-
-                            //Filter by root condition
-                            if (!$usingPrimaryIndex) {
-                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
-                            }
-                            if ($rootCondition instanceof ConditionTree) {
-                                $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
-                                    return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
-                                });
-                            }
-
-                            $indexData = array_merge($indexData, $subIndexData);
-
-                            //Check EOF
-                            if (count($result[1]) < (2 * $itLimit)) {
-                                break;
-                            }
-
-                            if (!$skipFirst) {
-                                $skipFirst = true;
-                            }
+                        $index = $this->openBtree($indexName);
+                        if ($index === false) {
+                            $channel->push([]);
+                            return;
                         }
 
-                        return array_values($indexData);
+                        $subIndexData = $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                            $usingPrimaryIndex, $itStart, $itEnd,
+                            $itLimit, $indexName, $operatorHandler,
+                            $conditionOperator, $field, $conditionValue, $schema,
+                            $rootCondition, $offsetLimitCount
+                        ) {
+                            $indexData = [];
+                            $skipFirst = false;
+                            while (($result = $index->rawCommand(
+                                    'pkhscanrange',
+                                    $index->_prefix($indexName),
+                                    $itStart,
+                                    $itEnd,
+                                    'MATCH',
+                                    '*',
+                                    'LIMIT',
+                                    $itLimit
+                                )) && isset($result[1])) {
+                                $subIndexData = [];
+
+                                $formattedResult = [];
+                                foreach ($result[1] as $key => $data) {
+                                    if ($skipFirst) {
+                                        if (in_array($key, [0, 1])) {
+                                            continue;
+                                        }
+                                    }
+                                    if ($key % 2 == 0) {
+                                        $formattedResult[$data] = $result[1][$key + 1];
+                                    }
+                                }
+
+                                foreach ($formattedResult as $key => $data) {
+                                    $itStart = $key;
+                                    if (!$operatorHandler->calculateOperatorExpr(
+                                        $conditionOperator,
+                                        ...[$key, $conditionValue]
+                                    )) {
+                                        continue;
+                                    }
+                                    if ($usingPrimaryIndex) {
+                                        $arrData = json_decode($data, true);
+                                        $subIndexData[] = $arrData;
+                                    } else {
+                                        $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                    }
+                                }
+
+                                //Filter by root condition
+                                if (!$usingPrimaryIndex) {
+                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                }
+                                if ($rootCondition instanceof ConditionTree) {
+                                    $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                                        return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                                    });
+                                }
+
+                                $indexData = array_merge($indexData, $subIndexData);
+
+                                //Check EOF
+                                if (count($result[1]) < (2 * $itLimit)) {
+                                    break;
+                                }
+
+                                if (!$skipFirst) {
+                                    $skipFirst = true;
+                                }
+                            }
+
+                            return array_values($indexData);
+                        });
+
+                        $channel->push($subIndexData);
                     });
 
-                    $indexData = array_merge($indexData, $subIndexData);
+                    ++$coroutineCount;
+                    if ($coroutineCount === $coroutineTotal) {
+                        for ($coroutineIndex = 0; $coroutineIndex < $coroutineCount; ++$coroutineIndex) {
+                            $indexData = array_merge($indexData, $channel->pop());
+                            if (!is_null($offsetLimitCount)) {
+                                if (count($indexData) >= $offsetLimitCount) {
+                                    $coroutineCount = 0;
+                                    break 2;
+                                }
+                            }
+                        }
+                        $coroutineCount = 0;
+                    }
+                }
 
-                    if (!is_null($offsetLimitCount)) {
-                        if (count($indexData) >= $offsetLimitCount) {
-                            break;
+                if ($coroutineCount > 0) {
+                    for ($i = 0; $i < $coroutineCount; ++$i) {
+                        $indexData = array_merge($indexData, $channel->pop());
+                        if (!is_null($offsetLimitCount)) {
+                            if (count($indexData) >= $offsetLimitCount) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -1311,7 +1341,7 @@ class Pika extends AbstractStorage
             //todo 重写and为between ?
         }
 
-        $coroutineTotal = 10;
+        $coroutineTotal = 3;
         $coroutineCount = 0;
         $channel = new Channel($coroutineTotal);
 
