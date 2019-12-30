@@ -29,7 +29,6 @@ class RulesBasedOptimizer
         }
 
         $this->setStorageGetLimit();
-        $this->setNativeOrderBy();
         $this->setIndexSuggestion();
 
         return $this->plan;
@@ -53,28 +52,6 @@ class RulesBasedOptimizer
             return;
         }
         $queryPlan->setStorageGetLimit($limit);
-    }
-
-    protected function setNativeOrderBy()
-    {
-        /** @var QueryPlan $queryPlan */
-        $queryPlan = $this->plan->getExecutePlan();
-        $orders = $queryPlan->getOrders();
-        if (is_null($orders)) {
-            return;
-        }
-        if (count($orders) > 1) {
-            return;
-        }
-        $condition = $queryPlan->getCondition();
-        $order = $orders[0];
-        if ($order->getType() === 'colref') {
-            if ($order->getValue() === 'id' && $order->getDirection() === 'ASC') { //todo fetch primary key from schema
-                if (is_null($condition)) {
-                    $queryPlan->setNativeOrder(true);
-                }
-            }
-        }
     }
 
     protected function setIndexSuggestion()
