@@ -812,6 +812,11 @@ class Pika extends AbstractStorage
                                 }
 
                                 $indexData = array_merge($indexData, $subIndexData);
+                                if (!is_null($offsetLimitCount)) {
+                                    if (count($indexData) >= $offsetLimitCount) {
+                                        break;
+                                    }
+                                }
 
                                 //Check EOF
                                 if (count($result[1]) < (2 * $itLimit)) {
@@ -1044,8 +1049,6 @@ class Pika extends AbstractStorage
         $isNot
     )
     {
-        //todo using partition
-
         $operatorHandler = new OperatorHandler($isNot);
         $operands = $condition->getOperands();
 
@@ -1074,41 +1077,17 @@ class Pika extends AbstractStorage
         }
 
         if ($operandType1 === 'colref' && $operandType2 === 'const' && $operandType3 === 'const') {
-            $index = false;
-            $usingPrimaryIndex = false;
-            $indexName = null;
-            $suggestIndex = $indexSuggestions[$schema][$operandValue1] ?? null;
-            if (!is_null($suggestIndex)) {
-                $index = $this->openBtree($suggestIndex['indexName']);
-                if ($index !== false) {
-                    $indexName = $suggestIndex['indexName'];
-                    $usingPrimaryIndex = $suggestIndex['primaryIndex'];
+            if ($this->countPartitionByRange($schema, $operandValue1, '', '') > 0) {
+                $itLimit = 10000; //must greater than 1
+                $offset = null;
+                $limitCount = null;
+                $offsetLimitCount = null;
+                if (!is_null($limit)) {
+                    $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                    $limitCount = $limit['rowcount'];
+                    $offsetLimitCount = $offset + $limitCount;
                 }
-            }
-            if ($index === false) {
-                $index = $this->openBtree($schema . '.' . $operandValue1);
-                if ($index !== false) {
-                    $indexName = $schema . '.' . $operandValue1;
-                }
-            }
-            if ($index === false) {
-                $usingPrimaryIndex = true;
-                $index = $this->openBtree($schema);
-                $indexName = $schema;
-            }
-            $itStart = '';
-            $itEnd = '';
-            $itLimit = 10000; //must greater than 1
-            $offset = null;
-            $limitCount = null;
-            $offsetLimitCount = null;
-            if (!is_null($limit)) {
-                $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-                $limitCount = $limit['rowcount'];
-                $offsetLimitCount = $offset + $limitCount;
-            }
 
-            if ((!$usingPrimaryIndex) || ($operandValue1 === 'id')) { //todo fetch primary key from schema meta data
                 if ($isNot) {
                     $splitConditionTree = new ConditionTree();
                     $splitConditionTree->setLogicOperator('and')
@@ -1133,97 +1112,298 @@ class Pika extends AbstractStorage
                     $itStart = $operandValue2;
                     $itEnd = $operandValue3;
                 }
-            }
 
-            return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
-                $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
-            ) {
+                $partitions = $this->partitionByRange($schema, $operandValue1, $itStart, $itEnd);
+
+                list($partitionStartIndex, $partitionEndIndex) = $partitions;
+
                 $indexData = [];
-                $skipFirst = false;
 
-                while (($result = $index->rawCommand(
-                        'pkhscanrange',
-                        $index->_prefix($indexName),
-                        $itStart,
-                        $itEnd,
-                        'MATCH',
-                        '*',
-                        'LIMIT',
-                        $itLimit
-                    )) && isset($result[1])) {
-                    $subIndexData = [];
+                $usingPrimaryIndex = ($operandValue1 === 'id'); //todo fetch primary key from schema meta data
 
-                    $formattedResult = [];
-                    foreach ($result[1] as $key => $data) {
-                        if ($skipFirst) {
-                            if (in_array($key, [0, 1])) {
-                                continue;
+                $coroutineTotal = 3;
+                $coroutineCount = 0;
+                $channel = new Channel($coroutineTotal);
+
+                for ($partitionIndex = $partitionStartIndex; $partitionIndex <= $partitionEndIndex; ++$partitionIndex) {
+                    go(function () use (
+                        $usingPrimaryIndex, $schema, $operandValue1, $partitionIndex,
+                        $channel, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operatorHandler,
+                        $operandValue2, $operandValue3, $rootCondition
+                    ) {
+                        $indexName = $this->getIndexPartitionName(
+                            $usingPrimaryIndex ? $schema : ($schema . '.' . $operandValue1),
+                            $partitionIndex
+                        );
+
+                        $index = $this->openBtree($indexName);
+                        if ($index === false) {
+                            $channel->push([]);
+                            return;
+                        }
+
+                        $subIndexData = $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                            $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
+                            $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
+                        ) {
+                            $indexData = [];
+                            $skipFirst = false;
+
+                            while (($result = $index->rawCommand(
+                                    'pkhscanrange',
+                                    $index->_prefix($indexName),
+                                    $itStart,
+                                    $itEnd,
+                                    'MATCH',
+                                    '*',
+                                    'LIMIT',
+                                    $itLimit
+                                )) && isset($result[1])) {
+                                $subIndexData = [];
+
+                                $formattedResult = [];
+                                foreach ($result[1] as $key => $data) {
+                                    if ($skipFirst) {
+                                        if (in_array($key, [0, 1])) {
+                                            continue;
+                                        }
+                                    }
+                                    if ($key % 2 == 0) {
+                                        $formattedResult[$data] = $result[1][$key + 1];
+                                    }
+                                }
+
+                                foreach ($formattedResult as $key => $data) {
+                                    $itStart = $key;
+
+                                    if (!$operatorHandler->calculateOperatorExpr(
+                                        'between',
+                                        ...[$key, $operandValue2, $operandValue3]
+                                    )) {
+                                        continue;
+                                    }
+
+                                    if ($usingPrimaryIndex) {
+                                        $subIndexData[] = json_decode($data, true);
+                                    } else {
+                                        $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                    }
+                                }
+
+                                //Filter by root condition
+                                if (!$usingPrimaryIndex) {
+                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                }
+                                if ($rootCondition instanceof ConditionTree) {
+                                    $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                                        return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                                    });
+                                }
+                                $indexData = array_merge($indexData, $subIndexData);
+
+                                if (!is_null($offsetLimitCount)) {
+                                    if (count($indexData) >= $offsetLimitCount) {
+                                        break;
+                                    }
+                                }
+
+                                $resultCnt = count($result[1]);
+
+                                //EOF
+                                if ($resultCnt < (2 * $itLimit)) {
+                                    break;
+                                }
+
+                                if (!$skipFirst) {
+                                    $skipFirst = true;
+                                }
                             }
-                        }
-                        if ($key % 2 == 0) {
-                            $formattedResult[$data] = $result[1][$key + 1];
-                        }
-                    }
 
-                    foreach ($formattedResult as $key => $data) {
-                        $itStart = $key;
-
-                        if ($usingPrimaryIndex) {
-                            $arrData = json_decode($data, true);
-                            if (!$operatorHandler->calculateOperatorExpr(
-                                    'between',
-                                    ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
-                                )) {
-                                continue;
-                            }
-                        } else {
-                            if (!$operatorHandler->calculateOperatorExpr(
-                                'between',
-                                ...[$key, $operandValue2, $operandValue3]
-                            )) {
-                                continue;
-                            }
-                        }
-
-                        if ($usingPrimaryIndex) {
-                            $subIndexData[] = json_decode($data, true);
-                        } else {
-                            $subIndexData = array_merge($subIndexData, json_decode($data, true));
-                        }
-                    }
-
-                    //Filter by root condition
-                    if (!$usingPrimaryIndex) {
-                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
-                    }
-                    if ($rootCondition instanceof ConditionTree) {
-                        $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
-                            return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                            return array_values($indexData);
                         });
+
+                        $channel->push($subIndexData);
+                    });
+
+                    ++$coroutineCount;
+                    if ($coroutineCount === $coroutineTotal) {
+                        for ($coroutineIndex = 0; $coroutineIndex < $coroutineCount; ++$coroutineIndex) {
+                            $indexData = array_merge($indexData, $channel->pop());
+                            if (!is_null($offsetLimitCount)) {
+                                if (count($indexData) >= $offsetLimitCount) {
+                                    $coroutineCount = 0;
+                                    break 2;
+                                }
+                            }
+                        }
+                        $coroutineCount = 0;
                     }
-                    $indexData = array_merge($indexData, $subIndexData);
+                }
 
-                    $resultCnt = count($result[1]);
-
-                    //EOF
-                    if ($resultCnt < (2 * $itLimit)) {
-                        break;
-                    }
-
-                    if (!$skipFirst) {
-                        $skipFirst = true;
-                    }
-
-                    if (!is_null($offsetLimitCount)) {
-                        if (count($indexData) >= $offsetLimitCount) {
-                            break;
+                if ($coroutineCount > 0) {
+                    for ($i = 0; $i < $coroutineCount; ++$i) {
+                        $indexData = array_merge($indexData, $channel->pop());
+                        if (!is_null($offsetLimitCount)) {
+                            if (count($indexData) >= $offsetLimitCount) {
+                                break;
+                            }
                         }
                     }
                 }
 
                 return array_values($indexData);
-            });
+            } else {
+                $index = false;
+                $usingPrimaryIndex = false;
+                $indexName = null;
+                $suggestIndex = $indexSuggestions[$schema][$operandValue1] ?? null;
+                if (!is_null($suggestIndex)) {
+                    $index = $this->openBtree($suggestIndex['indexName']);
+                    if ($index !== false) {
+                        $indexName = $suggestIndex['indexName'];
+                        $usingPrimaryIndex = $suggestIndex['primaryIndex'];
+                    }
+                }
+                if ($index === false) {
+                    $index = $this->openBtree($schema . '.' . $operandValue1);
+                    if ($index !== false) {
+                        $indexName = $schema . '.' . $operandValue1;
+                    }
+                }
+                if ($index === false) {
+                    $usingPrimaryIndex = true;
+                    $index = $this->openBtree($schema);
+                    $indexName = $schema;
+                }
+                $itStart = '';
+                $itEnd = '';
+                $itLimit = 10000; //must greater than 1
+                $offset = null;
+                $limitCount = null;
+                $offsetLimitCount = null;
+                if (!is_null($limit)) {
+                    $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                    $limitCount = $limit['rowcount'];
+                    $offsetLimitCount = $offset + $limitCount;
+                }
+
+                if ((!$usingPrimaryIndex) || ($operandValue1 === 'id')) { //todo fetch primary key from schema meta data
+                    if ($isNot) {
+                        $splitConditionTree = new ConditionTree();
+                        $splitConditionTree->setLogicOperator('and')
+                            ->addSubConditions(
+                                (new Condition())->setOperator('<')
+                                    ->addOperands($operands[0])
+                                    ->addOperands($operands[1])
+                            )
+                            ->addSubConditions(
+                                (new Condition())->setOperator('>')
+                                    ->addOperands($operands[0])
+                                    ->addOperands($operands[2])
+                            );
+                        return $this->filterConditionTree(
+                            $schema,
+                            $rootCondition,
+                            $splitConditionTree,
+                            $limit,
+                            $indexSuggestions
+                        );
+                    } else {
+                        $itStart = $operandValue2;
+                        $itEnd = $operandValue3;
+                    }
+                }
+
+                return $this->safeUseIndex($index, function (RedisWrapper $index) use (
+                    $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
+                    $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
+                ) {
+                    $indexData = [];
+                    $skipFirst = false;
+
+                    while (($result = $index->rawCommand(
+                            'pkhscanrange',
+                            $index->_prefix($indexName),
+                            $itStart,
+                            $itEnd,
+                            'MATCH',
+                            '*',
+                            'LIMIT',
+                            $itLimit
+                        )) && isset($result[1])) {
+                        $subIndexData = [];
+
+                        $formattedResult = [];
+                        foreach ($result[1] as $key => $data) {
+                            if ($skipFirst) {
+                                if (in_array($key, [0, 1])) {
+                                    continue;
+                                }
+                            }
+                            if ($key % 2 == 0) {
+                                $formattedResult[$data] = $result[1][$key + 1];
+                            }
+                        }
+
+                        foreach ($formattedResult as $key => $data) {
+                            $itStart = $key;
+
+                            if ($usingPrimaryIndex) {
+                                $arrData = json_decode($data, true);
+                                if (!$operatorHandler->calculateOperatorExpr(
+                                    'between',
+                                    ...[$arrData[$operandValue1], $operandValue2, $operandValue3]
+                                )) {
+                                    continue;
+                                }
+                            } else {
+                                if (!$operatorHandler->calculateOperatorExpr(
+                                    'between',
+                                    ...[$key, $operandValue2, $operandValue3]
+                                )) {
+                                    continue;
+                                }
+                            }
+
+                            if ($usingPrimaryIndex) {
+                                $subIndexData[] = json_decode($data, true);
+                            } else {
+                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                            }
+                        }
+
+                        //Filter by root condition
+                        if (!$usingPrimaryIndex) {
+                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                        }
+                        if ($rootCondition instanceof ConditionTree) {
+                            $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
+                                return $this->filterConditionTreeByIndexData($schema, $row, $rootCondition);
+                            });
+                        }
+                        $indexData = array_merge($indexData, $subIndexData);
+
+                        $resultCnt = count($result[1]);
+
+                        //EOF
+                        if ($resultCnt < (2 * $itLimit)) {
+                            break;
+                        }
+
+                        if (!$skipFirst) {
+                            $skipFirst = true;
+                        }
+
+                        if (!is_null($offsetLimitCount)) {
+                            if (count($indexData) >= $offsetLimitCount) {
+                                break;
+                            }
+                        }
+                    }
+
+                    return array_values($indexData);
+                });
+            }
         } else {
             return [];
         }
