@@ -1579,6 +1579,15 @@ class Pika extends AbstractStorage
             if ($coroutineCount === $coroutineTotal) {
                 for ($coroutineIndex = 0; $coroutineIndex < $coroutineCount; ++$coroutineIndex) {
                     $result = array_merge($result, $channel->pop());
+                    if (!is_null($limit)) {
+                        $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
+                        $limitCount = $limit['rowcount'];
+                        $offsetLimitCount = $offset + $limitCount;
+                        if (count($result) >= $offsetLimitCount) {
+                            $coroutineCount = 0;
+                            break 2;
+                        }
+                    }
                 }
                 $coroutineCount = 0;
             }

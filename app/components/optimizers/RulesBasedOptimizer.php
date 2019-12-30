@@ -37,7 +37,6 @@ class RulesBasedOptimizer
 
     protected function setStorageGetLimit()
     {
-        //todo 扩大适用范围，因为conditionFilter的时候会过滤rootCondition
         /** @var QueryPlan $queryPlan */
         $queryPlan = $this->plan->getExecutePlan();
         $limit = $queryPlan->getLimit();
@@ -53,14 +52,7 @@ class RulesBasedOptimizer
         if (count($queryPlan->getSchemas()) > 1) {
             return;
         }
-        $condition = $queryPlan->getCondition();
-        if (is_null($condition)) {
-            $queryPlan->setStorageGetLimit($limit);
-        } else {
-            if ($condition instanceof Condition) {
-                $queryPlan->setStorageGetLimit($limit);
-            }
-        }
+        $queryPlan->setStorageGetLimit($limit);
     }
 
     protected function setNativeOrderBy()
