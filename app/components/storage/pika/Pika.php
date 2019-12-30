@@ -470,29 +470,41 @@ class Pika extends AbstractStorage
      */
     protected function fetchAllPrimaryIndexData($schema, $limit)
     {
-        //todo hvals
+        $indexName = $schema;
 
-        $index = $this->openBtree($schema);
+        $index = $this->openBtree($indexName);
         if ($index === false) {
             return [];
+        }
+
+        if (is_null($limit)) {
+            $indexData = $this->safeUseIndex($index, function (RedisWrapper $index) use ($indexName) {
+                return $index->hVals($indexName);
+            });
+
+            array_walk($indexData, function (&$val) {
+                $val = json_decode($val, true);
+            });
+
+            return $indexData;
         }
 
         $itLimit = 10000; //must greater than 1
         $offsetLimitCount = null;
         if (!is_null($limit)) {
             $offset = $limit['offset'] === '' ? 0 : $limit['offset'];
-            $itLimit = $limitCount = $limit['rowcount'];
+            $limitCount = $limit['rowcount'];
             $offsetLimitCount = $offset + $limitCount;
         }
 
         return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-            $schema, $itLimit, $offsetLimitCount
+            $indexName, $itLimit, $offsetLimitCount
         ) {
             $indexData = [];
             $startKey = '';
             while (($result = $index->rawCommand(
                 'pkhscanrange',
-                $index->_prefix($schema),
+                $index->_prefix($indexName),
                 $startKey,
                 '',
                 'MATCH',
