@@ -1521,6 +1521,11 @@ class Pika extends AbstractStorage
         $subConditions = $conditionTree->getSubConditions();
 
         if ($logicOperator === 'and') {
+            //todo 重写and为between ?
+            if (count($subConditions) === 2) {
+                //
+            }
+
             $costList = [];
             foreach ($subConditions as $subCondition) {
                 if ($subCondition instanceof Condition) {
@@ -1554,8 +1559,6 @@ class Pika extends AbstractStorage
             } else {
                 $subConditions = array_slice($subConditions, 0, 1);
             }
-
-            //todo 重写and为between ?
         }
 
         $coroutineTotal = 3;
