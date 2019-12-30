@@ -1521,9 +1521,92 @@ class Pika extends AbstractStorage
         $subConditions = $conditionTree->getSubConditions();
 
         if ($logicOperator === 'and') {
-            //todo 重写and为between ?
             if (count($subConditions) === 2) {
-                //
+                $subCondition1Col = null;
+                $subCondition1Operator = null;
+                $subCondition1Value = null;
+                $subCondition2Col = null;
+                $subCondition2Operator = null;
+                $subCondition2Value = null;
+                $subCondition1 = $subConditions[0];
+                $subCondition2 = $subConditions[1];
+                if ($subCondition1 instanceof Condition) {
+                    $subCondition1Operands = $subCondition1->getOperands();
+                    if (($subCondition1Operands[0]->getType() === 'colref') &&
+                        ($subCondition1Operands[1]->getType() === 'const')
+                    ) {
+                        $subCondition1Col = $subCondition1Operands[0]->getValue();
+                        $subCondition1Value = $subCondition1Operands[1]->getValue();
+                    }
+                    if (($subCondition1Operands[0]->getType() === 'const') &&
+                        ($subCondition1Operands[1]->getType() === 'colref')
+                    ) {
+                        $subCondition1Col = $subCondition1Operands[1]->getValue();
+                        $subCondition1Value = $subCondition1Operands[0]->getValue();
+                    }
+                    $subCondition1Operator = $subCondition1->getOperator();
+                }
+                if ($subCondition2 instanceof Condition) {
+                    $subCondition2Operands = $subCondition2->getOperands();
+                    if (($subCondition2Operands[0]->getType() === 'colref') &&
+                        ($subCondition2Operands[1]->getType() === 'const')
+                    ) {
+                        $subCondition2Col = $subCondition2Operands[0]->getValue();
+                        $subCondition2Value = $subCondition2Operands[1]->getValue();
+                    }
+                    if (($subCondition2Operands[0]->getType() === 'const') &&
+                        ($subCondition2Operands[1]->getType() === 'colref')
+                    ) {
+                        $subCondition2Col = $subCondition2Operands[1]->getValue();
+                        $subCondition2Value = $subCondition2Operands[0]->getValue();
+                    }
+                    $subCondition2Operator = $subCondition2->getOperator();
+                }
+
+                if ((!is_null($subCondition1Col)) &&
+                    (!is_null($subCondition1Operator)) &&
+                    (!is_null($subCondition1Value)) &&
+                    (!is_null($subCondition2Col)) &&
+                    (!is_null($subCondition2Operator)) &&
+                    (!is_null($subCondition2Value))
+                ) {
+                    if ($subCondition1Col === $subCondition2Col) {
+                        if (($subCondition1Operator === '>=') && ($subCondition2Operator === '<=')) {
+                            $subConditions = [
+                                (new Condition())->setOperator('between')
+                                    ->addOperands(
+                                        (new Operand())->setType('colref')
+                                            ->setValue($subCondition1Col)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue($subCondition1Value)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue($subCondition2Value)
+                                    )
+                            ];
+                        }
+                        if (($subCondition1Operator === '<=') && ($subCondition2Operator === '>=')) {
+                            $subConditions = [
+                                (new Condition())->setOperator('between')
+                                    ->addOperands(
+                                        (new Operand())->setType('colref')
+                                            ->setValue($subCondition1Col)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue($subCondition2Value)
+                                    )
+                                    ->addOperands(
+                                        (new Operand())->setType('const')
+                                            ->setValue($subCondition1Value)
+                                    )
+                            ];
+                        }
+                    }
+                }
             }
 
             $costList = [];
