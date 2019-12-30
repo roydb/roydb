@@ -154,9 +154,12 @@ class Pika extends AbstractStorage
             if ($logicOperator === 'and') {
                 $costList = [];
                 foreach ($subConditions as $subCondition) {
-                    $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                    $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                    if ($cost > 0) {
+                        $costList[] = $cost;
+                    }
                 }
-                return min($costList);
+                return (count($costList) > 0) ? min($costList) : 0;
             } elseif ($logicOperator === 'or') {
                 $costList = [];
                 foreach ($subConditions as $subCondition) {
@@ -167,18 +170,27 @@ class Pika extends AbstractStorage
                 $costList = [];
                 foreach ($subConditions as $subCondition) {
                     if ($subCondition instanceof Condition) {
-                        $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                        $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                        if ($cost > 0) {
+                            $costList[] = $cost;
+                        }
                     } else {
                         if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
                             foreach ($subCondition as $subSubCondition) {
-                                $costList[] = $this->countPartitionByCondition($schema, $subSubCondition);
+                                $cost = $this->countPartitionByCondition($schema, $subSubCondition);
+                                if ($cost > 0) {
+                                    $costList[] = $cost;
+                                }
                             }
                         } else {
-                            $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                            $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                            if ($cost > 0) {
+                                $costList[] = $cost;
+                            }
                         }
                     }
                 }
-                return min($costList);
+                return (count($costList) > 0) ? min($costList) : 0;
             }
 
             return 0;
@@ -1512,23 +1524,36 @@ class Pika extends AbstractStorage
             $costList = [];
             foreach ($subConditions as $subCondition) {
                 if ($subCondition instanceof Condition) {
-                    $costList[] = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                    $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                    if ($cost > 0) {
+                        $costList[] = $cost;
+                    }
                 } else {
                     if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
                         foreach ($subCondition as $subSubCondition) {
-                            $costList[] = $this->countPartitionByCondition($schema, $subSubCondition);
+                            $cost = $this->countPartitionByCondition($schema, $subSubCondition);
+                            if ($cost > 0) {
+                                $costList[] = $cost;
+                            }
                         }
                     } else {
                         foreach ($subCondition as $subSubCondition) {
-                            $costList[] = $this->countPartitionByCondition($schema, $subSubCondition, $isNot);
+                            $cost = $this->countPartitionByCondition($schema, $subSubCondition, $isNot);
+                            if ($cost > 0) {
+                                $costList[] = $cost;
+                            }
                         }
                     }
                 }
             }
 
-            $minCost = min($costList);
-            $minCostConditionIndex = array_search($minCost, $costList);
-            $subConditions = [$subConditions[$minCostConditionIndex]];
+            $minCost = count($costList) > 0 ? min($costList) : 0;
+            if ($minCost > 0) {
+                $minCostConditionIndex = array_search($minCost, $costList);
+                $subConditions = [$subConditions[$minCostConditionIndex]];
+            } else {
+                $subConditions = array_slice($subConditions, 0, 1);
+            }
 
             //todo 重写and为between ?
         }
