@@ -71,6 +71,11 @@ class Pika extends AbstractStorage
         return $result;
     }
 
+    protected function getPrimaryKeyBySchema($schema)
+    {
+        //todo
+    }
+
     /**
      * @param $schema
      * @param $key
