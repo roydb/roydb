@@ -336,6 +336,8 @@ class QueryPlan
     {
         $resultSet = [];
 
+        //todo count(*) optimization
+
         if (!is_null($this->schemas)) {
             $hasJoin = false;
             foreach ($this->schemas as $i => $schema) {
