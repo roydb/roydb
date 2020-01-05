@@ -467,6 +467,7 @@ class Pika extends AbstractStorage
         $redis = RedisPool::pick('pika');
         try {
             if (!$new) {
+                //todo optimization exists result cache
                 if (!$redis->exists($name)) {
                     return false;
                 }
