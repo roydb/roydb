@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package roykv;
+
+service Kv {
+  rpc Get (GetRequest) returns (GetReply) {}
+  rpc Exist (ExistRequest) returns (ExistReply) {}
+  rpc Scan (ScanRequest) returns (ScanReply) {}
+  rpc MGet (MGetRequest) returns (MGetReply) {}
+  rpc GetAll (GetAllRequest) returns (GetAllReply) {}
+}
+
+message GetRequest {
+  string key = 1;
+}
+
+message GetReply {
+  string value = 1;
+}
+
+message ExistRequest {
+  string key = 1;
+}
+
+message ExistReply {
+  bool existed = 1;
+}
+
+message ScanRequest {
+  string startKey = 1;
+  string endKey = 2;
+  string keyPrefix = 3;
+  uint64 limit = 4;
+}
+
+message ScanReply {
+  map<string, string> data = 1;
+}
+
+message MGetRequest {
+  repeated string keys = 1;
+}
+
+message MGetReply {
+  map<string, string> data = 1;
+}
+
+message GetAllRequest {
+  string keyPrefix = 1;
+}
+
+message GetAllReply {
+  map<string, string> data = 1;
+}
