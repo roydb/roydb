@@ -69,7 +69,7 @@ class Roykv extends Pika
         return $data;
     }
 
-    protected function dataSchemaScan(KvClient $btree, $indexName, $startKey, $endKey, $limit)
+    protected function dataSchemaScan(KvClient $btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false)
     {
         $data = [];
 
@@ -80,7 +80,10 @@ class Roykv extends Pika
                 ->setLimit($limit)
         );
         if ($scanReply) {
-            foreach ($scanReply->getData() as $item) {
+            foreach ($scanReply->getData() as $i => $item) {
+                if ($skipFirst && ($i === 0)) {
+                    continue;
+                }
                 $data[$item->getKey()] = $item->getValue();
             }
         }
