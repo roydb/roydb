@@ -2,13 +2,14 @@
 
 namespace App\components\storage\pika;
 
+use App\components\storage\KvStorage;
 use App\services\KvClient;
 use Roykv\GetAllRequest;
 use Roykv\GetRequest;
 use Roykv\MGetRequest;
 use Roykv\ScanRequest;
 
-class Roykv extends Pika
+class Roykv extends KvStorage
 {
     /**
      * @return KvClient
@@ -28,7 +29,12 @@ class Roykv extends Pika
         return $this->getKvClient();
     }
 
-    protected function metaSchemaGet(KvClient $btree, $schemaName)
+    /**
+     * @param KvClient $btree
+     * @param $schemaName
+     * @return null|string
+     */
+    protected function metaSchemaGet($btree, $schemaName)
     {
         $metaSchema = null;
 
@@ -40,7 +46,12 @@ class Roykv extends Pika
         return $metaSchema;
     }
 
-    protected function dataSchemaGetAll(KvClient $btree, $indexName)
+    /**
+     * @param KvClient $btree
+     * @param $indexName
+     * @return array
+     */
+    protected function dataSchemaGetAll($btree, $indexName)
     {
         $values = [];
         $getAllReply = $btree->GetAll((new GetAllRequest())->setKeyPrefix('data.schema.' . $indexName . '::'));
@@ -54,7 +65,13 @@ class Roykv extends Pika
         return $values;
     }
 
-    protected function dataSchemaGetById(KvClient $btree, $id, $schema)
+    /**
+     * @param KvClient $btree
+     * @param $id
+     * @param $schema
+     * @return null|string
+     */
+    protected function dataSchemaGetById($btree, $id, $schema)
     {
         $data = null;
         if (is_int($id)) {
@@ -69,7 +86,16 @@ class Roykv extends Pika
         return $data;
     }
 
-    protected function dataSchemaScan(KvClient $btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false)
+    /**
+     * @param KvClient $btree
+     * @param $indexName
+     * @param $startKey
+     * @param $endKey
+     * @param $limit
+     * @param bool $skipFirst
+     * @return array
+     */
+    protected function dataSchemaScan($btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false)
     {
         $data = [];
 
@@ -91,7 +117,13 @@ class Roykv extends Pika
         return $data;
     }
 
-    protected function dataSchemaMGet(KvClient $btree, $schema, $idList)
+    /**
+     * @param KvClient $btree
+     * @param $schema
+     * @param $idList
+     * @return array
+     */
+    protected function dataSchemaMGet($btree, $schema, $idList)
     {
         $values = [];
 
