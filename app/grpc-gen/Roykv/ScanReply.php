@@ -14,7 +14,7 @@ use Google\Protobuf\Internal\GPBUtil;
 class ScanReply extends \Google\Protobuf\Internal\Message
 {
     /**
-     * Generated from protobuf field <code>map<string, string> data = 1;</code>
+     * Generated from protobuf field <code>repeated .roykv.KVEntry data = 1;</code>
      */
     private $data;
 
@@ -24,7 +24,7 @@ class ScanReply extends \Google\Protobuf\Internal\Message
      * @param array $data {
      *     Optional. Data for populating the Message object.
      *
-     *     @type array|\Google\Protobuf\Internal\MapField $data
+     *     @type \Roykv\KVEntry[]|\Google\Protobuf\Internal\RepeatedField $data
      * }
      */
     public function __construct($data = NULL) {
@@ -33,8 +33,8 @@ class ScanReply extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>map<string, string> data = 1;</code>
-     * @return \Google\Protobuf\Internal\MapField
+     * Generated from protobuf field <code>repeated .roykv.KVEntry data = 1;</code>
+     * @return \Google\Protobuf\Internal\RepeatedField
      */
     public function getData()
     {
@@ -42,13 +42,13 @@ class ScanReply extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>map<string, string> data = 1;</code>
-     * @param array|\Google\Protobuf\Internal\MapField $var
+     * Generated from protobuf field <code>repeated .roykv.KVEntry data = 1;</code>
+     * @param \Roykv\KVEntry[]|\Google\Protobuf\Internal\RepeatedField $var
      * @return $this
      */
     public function setData($var)
     {
-        $arr = GPBUtil::checkMapField($var, \Google\Protobuf\Internal\GPBType::STRING, \Google\Protobuf\Internal\GPBType::STRING);
+        $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::MESSAGE, \Roykv\KVEntry::class);
         $this->data = $arr;
 
         return $this;
