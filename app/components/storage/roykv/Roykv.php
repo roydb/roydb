@@ -92,29 +92,33 @@ class Roykv extends KvStorage
      * @param $startKey
      * @param $endKey
      * @param $limit
+     * @param callable $callback
      * @param bool $skipFirst
-     * @return array
      */
-    protected function dataSchemaScan($btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false)
+    protected function dataSchemaScan($btree, $indexName, &$startKey, &$endKey, $limit, $callback, &$skipFirst = false)
     {
-        $data = [];
-
-        $scanReply = $btree->Scan(
+        while (($scanReply = $btree->Scan(
             (new ScanRequest())->setStartKey('data.schema.' . $indexName . '::' . $startKey)
                 ->setEndKey(($endKey === '') ? '' : ('data.schema' . $indexName . '::' . $endKey))
                 ->setKeyPrefix('data.schema.' . $indexName . '::')
                 ->setLimit($limit)
-        );
-        if ($scanReply) {
+        ))) {
+            $data = [];
+            $resultCount = 0;
             foreach ($scanReply->getData() as $i => $item) {
+                ++$resultCount;
+
                 if ($skipFirst && ($i === 0)) {
                     continue;
                 }
+
                 $data[$item->getKey()] = $item->getValue();
             }
-        }
 
-        return $data;
+            if (!call_user_func_array($callback, [$data, $resultCount])) {
+                break;
+            }
+        }
     }
 
     /**

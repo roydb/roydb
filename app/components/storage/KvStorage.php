@@ -39,7 +39,9 @@ abstract class KvStorage extends AbstractStorage
 
     abstract protected function dataSchemaGetById($btree, $id, $schema);
 
-    abstract protected function dataSchemaScan($btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false);
+    abstract protected function dataSchemaScan(
+        $btree, $indexName, &$startKey, &$endKey, $limit, $callback, &$skipFirst = false
+    );
 
     abstract protected function dataSchemaMGet($btree, $schema, $idList);
 

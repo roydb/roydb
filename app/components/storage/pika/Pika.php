@@ -9,31 +9,59 @@ use SwFwLess\facades\RedisPool;
 class Pika extends KvStorage
 {
     /**
+     * @param $index
+     * @param $callback
+     * @return mixed
+     * @throws \Throwable
+     */
+    protected function safeUseIndex($index, $callback) {
+        try {
+            return call_user_func_array($callback, [$index]);
+        } catch (\Throwable $e) {
+            throw $e;
+        } finally {
+            RedisPool::release($index);
+        }
+    }
+
+    /**
      * @param RedisWrapper $btree
      * @param $schemaName
+     * @return mixed
+     * @throws \Throwable
      */
     protected function metaSchemaGet($btree, $schemaName)
     {
-        //todo
+        return $this->safeUseIndex($btree, function (RedisWrapper $metaSchema) use ($schemaName) {
+            return $metaSchema->hGet('meta.schema', $schemaName);
+        });
     }
 
     /**
      * @param RedisWrapper $btree
      * @param $indexName
+     * @return mixed
+     * @throws \Throwable
      */
     protected function dataSchemaGetAll($btree, $indexName)
     {
-        //todo
+        return $this->safeUseIndex($btree, function (RedisWrapper $index) use ($indexName) {
+            return $index->hVals($indexName);
+        });
     }
 
     /**
      * @param RedisWrapper $btree
      * @param $id
      * @param $schema
+     * @return mixed
+     * @throws \Throwable
      */
     protected function dataSchemaGetById($btree, $id, $schema)
     {
-        //todo
+        return $this->safeUseIndex($btree, function (RedisWrapper $index) use ($id, $schema) {
+            return $index->hGet($schema, $id);
+        });
     }
 
     /**
@@ -42,21 +70,62 @@ class Pika extends KvStorage
      * @param $startKey
      * @param $endKey
      * @param $limit
+     * @param callable $callback
      * @param bool $skipFirst
+     * @throws \Throwable
      */
-    protected function dataSchemaScan($btree, $indexName, $startKey, $endKey, $limit, $skipFirst = false)
+    protected function dataSchemaScan($btree, $indexName, &$startKey, &$endKey, $limit, $callback, &$skipFirst = false)
     {
-        //todo
+        $this->safeUseIndex($btree, function (RedisWrapper $index) use (
+            $indexName, &$startKey, &$endKey, $limit, &$skipFirst, $callback
+        ) {
+            while (($result = $index->rawCommand(
+                'pkhscanrange',
+                $index->_prefix($indexName),
+                $startKey,
+                $endKey,
+                'MATCH',
+                '*',
+                'LIMIT',
+                $limit
+            )) && isset($result[1])) {
+                $formattedResult = [];
+                $resultCount = 0;
+                foreach ($result[1] as $key => $data) {
+                    if ($key % 2 == 0) {
+                        ++$resultCount;
+                    }
+
+                    if ($skipFirst) {
+                        if (in_array($key, [0, 1])) {
+                            continue;
+                        }
+                    }
+
+                    if ($key % 2 == 0) {
+                        $formattedResult[$data] = $result[1][$key + 1];
+                    }
+                }
+
+                if (!call_user_func_array($callback, [$formattedResult, $resultCount])) {
+                    break;
+                }
+            }
+        });
     }
 
     /**
      * @param RedisWrapper $btree
      * @param $schema
      * @param $idList
+     * @return mixed
+     * @throws \Throwable
      */
     protected function dataSchemaMGet($btree, $schema, $idList)
     {
-        //todo
+        return $this->safeUseIndex($btree, function (RedisWrapper $index) use ($idList, $schema) {
+            return $index->hMGet($schema, $idList);
+        });
     }
 
     /**
