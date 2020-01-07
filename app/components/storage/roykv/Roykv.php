@@ -115,7 +115,7 @@ class Roykv extends KvStorage
                 $data[$item->getKey()] = $item->getValue();
             }
 
-            if (!call_user_func_array($callback, [$data, $resultCount])) {
+            if (call_user_func_array($callback, [$data, $resultCount]) === false) {
                 break;
             }
         }

@@ -107,7 +107,7 @@ class Pika extends KvStorage
                     }
                 }
 
-                if (!call_user_func_array($callback, [$formattedResult, $resultCount])) {
+                if (call_user_func_array($callback, [$formattedResult, $resultCount]) === false) {
                     break;
                 }
             }
