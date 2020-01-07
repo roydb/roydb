@@ -81,6 +81,10 @@ abstract class KvStorage extends AbstractStorage
     protected function partitionByRange($schema, $key, $start, $end)
     {
         $schemaMeta = $this->getSchemaMetaData($schema);
+        if (!$schemaMeta) {
+            throw new \Exception($schema . ' not exists');
+        }
+
         $partition = $schemaMeta['partition'];
         if ($partition['key'] !== $key) {
             return null;
@@ -332,6 +336,10 @@ abstract class KvStorage extends AbstractStorage
     protected function colrefBelongsToSchema($colName, $schema)
     {
         $schemaMetaData = $this->getSchemaMetaData($schema);
+        if (!$schemaMetaData) {
+            throw new \Exception($schema . ' not exists');
+        }
+
         $schemaColumns = array_column($schemaMetaData['columns'], 'name');
 
         if (strpos($colName, '.')) {
