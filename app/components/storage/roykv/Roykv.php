@@ -40,7 +40,7 @@ class Roykv extends KvStorage
 
         $getReply = $btree->Get((new GetRequest())->setKey('meta.schema::' . $schemaName));
         if ($getReply) {
-            $metaSchema = $getReply->getValue();
+            $metaSchema = $getReply->getValue() ?: null;
         }
 
         return $metaSchema;
@@ -80,7 +80,7 @@ class Roykv extends KvStorage
 
         $getReply = $btree->Get((new GetRequest())->setKey('data.schema.' . $schema . '::' . $id));
         if ($getReply) {
-            $data = $getReply->getValue();
+            $data = $getReply->getValue() ?: null;
         }
 
         return $data;
@@ -147,6 +147,4 @@ class Roykv extends KvStorage
 
         return $values;
     }
-
-    //todo
 }

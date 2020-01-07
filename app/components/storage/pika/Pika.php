@@ -33,7 +33,7 @@ class Pika extends KvStorage
     protected function metaSchemaGet($btree, $schemaName)
     {
         return $this->safeUseIndex($btree, function (RedisWrapper $metaSchema) use ($schemaName) {
-            return $metaSchema->hGet('meta.schema', $schemaName);
+            return $metaSchema->hGet('meta.schema', $schemaName) ?: null;
         });
     }
 
@@ -60,7 +60,7 @@ class Pika extends KvStorage
     protected function dataSchemaGetById($btree, $id, $schema)
     {
         return $this->safeUseIndex($btree, function (RedisWrapper $index) use ($id, $schema) {
-            return $index->hGet($schema, $id);
+            return $index->hGet($schema, $id) ?: null;
         });
     }
 
