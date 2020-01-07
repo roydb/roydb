@@ -64,9 +64,19 @@ abstract class KvStorage extends AbstractStorage
         return $result;
     }
 
+    /**
+     * @param $schema
+     * @return mixed
+     * @throws \Throwable
+     */
     protected function getPrimaryKeyBySchema($schema)
     {
-        //todo
+        $metaSchema = $this->getSchemaMetaData($schema);
+        if (!$metaSchema) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        return $metaSchema['pk'];
     }
 
     /**
