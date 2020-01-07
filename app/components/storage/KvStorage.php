@@ -1112,36 +1112,20 @@ abstract class KvStorage extends AbstractStorage
                             return;
                         }
 
-                        $subIndexData = $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                            $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
-                            $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
-                        ) {
-                            $indexData = [];
-                            $skipFirst = false;
-
-                            while (($result = $index->rawCommand(
-                                    'pkhscanrange',
-                                    $index->_prefix($indexName),
-                                    $itStart,
-                                    $itEnd,
-                                    'MATCH',
-                                    '*',
-                                    'LIMIT',
-                                    $itLimit
-                                )) && isset($result[1])) {
+                        $indexData = [];
+                        $skipFirst = false;
+                        $this->dataSchemaScan(
+                            $index,
+                            $indexName,
+                            $itStart,
+                            $itEnd,
+                            $itLimit,
+                            function ($formattedResult, $resultCount) use (
+                                &$indexData, $operatorHandler, $operandValue2, $operandValue3,
+                                $usingPrimaryIndex, $schema, $rootCondition, $offsetLimitCount,
+                                $itLimit, &$skipFirst, &$itStart
+                            ) {
                                 $subIndexData = [];
-
-                                $formattedResult = [];
-                                foreach ($result[1] as $key => $data) {
-                                    if ($skipFirst) {
-                                        if (in_array($key, [0, 1])) {
-                                            continue;
-                                        }
-                                    }
-                                    if ($key % 2 == 0) {
-                                        $formattedResult[$data] = $result[1][$key + 1];
-                                    }
-                                }
 
                                 foreach ($formattedResult as $key => $data) {
                                     $itStart = $key;
@@ -1173,26 +1157,25 @@ abstract class KvStorage extends AbstractStorage
 
                                 if (!is_null($offsetLimitCount)) {
                                     if (count($indexData) >= $offsetLimitCount) {
-                                        break;
+                                        return false;
                                     }
                                 }
 
-                                $resultCnt = count($result[1]);
-
                                 //EOF
-                                if ($resultCnt < (2 * $itLimit)) {
-                                    break;
+                                if ($resultCount < $itLimit) {
+                                    return false;
                                 }
 
                                 if (!$skipFirst) {
                                     $skipFirst = true;
                                 }
-                            }
 
-                            return array_values($indexData);
-                        });
+                                return true;
+                            },
+                            $skipFirst
+                        );
 
-                        $channel->push($subIndexData);
+                        $channel->push(array_values($indexData));
                     });
 
                     ++$coroutineCount;
@@ -1284,36 +1267,20 @@ abstract class KvStorage extends AbstractStorage
                     }
                 }
 
-                return $this->safeUseIndex($index, function (RedisWrapper $index) use (
-                    $usingPrimaryIndex, $schema, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operandValue1,
-                    $indexName, $operatorHandler, $operandValue2, $operandValue3, $rootCondition
-                ) {
-                    $indexData = [];
-                    $skipFirst = false;
-
-                    while (($result = $index->rawCommand(
-                            'pkhscanrange',
-                            $index->_prefix($indexName),
-                            $itStart,
-                            $itEnd,
-                            'MATCH',
-                            '*',
-                            'LIMIT',
-                            $itLimit
-                        )) && isset($result[1])) {
+                $indexData = [];
+                $skipFirst = false;
+                $this->dataSchemaScan(
+                    $index,
+                    $indexName,
+                    $itStart,
+                    $itEnd,
+                    $itLimit,
+                    function ($formattedResult, $resultCount) use (
+                        &$indexData, &$itStart, $usingPrimaryIndex, $operatorHandler,
+                        $operandValue1, $operandValue2, $operandValue3, $schema, $rootCondition,
+                        $itLimit, &$skipFirst, $offsetLimitCount
+                    ) {
                         $subIndexData = [];
-
-                        $formattedResult = [];
-                        foreach ($result[1] as $key => $data) {
-                            if ($skipFirst) {
-                                if (in_array($key, [0, 1])) {
-                                    continue;
-                                }
-                            }
-                            if ($key % 2 == 0) {
-                                $formattedResult[$data] = $result[1][$key + 1];
-                            }
-                        }
 
                         foreach ($formattedResult as $key => $data) {
                             $itStart = $key;
@@ -1353,11 +1320,9 @@ abstract class KvStorage extends AbstractStorage
                         }
                         $indexData = array_merge($indexData, $subIndexData);
 
-                        $resultCnt = count($result[1]);
-
                         //EOF
-                        if ($resultCnt < (2 * $itLimit)) {
-                            break;
+                        if ($resultCount < $itLimit) {
+                            return false;
                         }
 
                         if (!$skipFirst) {
@@ -1366,13 +1331,16 @@ abstract class KvStorage extends AbstractStorage
 
                         if (!is_null($offsetLimitCount)) {
                             if (count($indexData) >= $offsetLimitCount) {
-                                break;
+                                return false;
                             }
                         }
-                    }
 
-                    return array_values($indexData);
-                });
+                        return true;
+                    },
+                    $skipFirst
+                );
+
+                return array_values($indexData);
             }
         } else {
             return [];
