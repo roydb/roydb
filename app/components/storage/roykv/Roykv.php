@@ -112,7 +112,8 @@ class Roykv extends KvStorage
                     continue;
                 }
 
-                $data[$item->getKey()] = $item->getValue();
+                $key = substr($item->getKey(), strlen('data.schema.' . $indexName . '::'));
+                $data[$key] = $item->getValue();
             }
 
             if (call_user_func_array($callback, [$data, $resultCount]) === false) {

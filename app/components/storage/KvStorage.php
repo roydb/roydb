@@ -7,7 +7,6 @@ use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
 use Co\Channel;
-use SwFwLess\components\redis\RedisWrapper;
 use SwFwLess\components\swoole\Scheduler;
 
 abstract class KvStorage extends AbstractStorage
@@ -82,7 +81,7 @@ abstract class KvStorage extends AbstractStorage
     {
         $schemaMeta = $this->getSchemaMetaData($schema);
         if (!$schemaMeta) {
-            throw new \Exception($schema . ' not exists');
+            throw new \Exception('Schema ' . $schema . ' not exists');
         }
 
         $partition = $schemaMeta['partition'];
@@ -337,7 +336,7 @@ abstract class KvStorage extends AbstractStorage
     {
         $schemaMetaData = $this->getSchemaMetaData($schema);
         if (!$schemaMetaData) {
-            throw new \Exception($schema . ' not exists');
+            throw new \Exception('Schema ' . $schema . ' not exists');
         }
 
         $schemaColumns = array_column($schemaMetaData['columns'], 'name');

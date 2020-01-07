@@ -8,6 +8,14 @@ class KvService extends \SwFwLess\services\GrpcUnaryService implements \App\serv
 {
 
     /**
+     * @param \Roykv\SetRequest $request
+     * @return \Roykv\SetReply
+     */
+    public function Set(\Roykv\SetRequest $request)
+    {
+        //todo implements interface
+    }
+    /**
      * @param \Roykv\GetRequest $request
      * @return \Roykv\GetReply
      */

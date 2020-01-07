@@ -8,6 +8,11 @@ interface KvInterface
 {
 
     /**
+     * @param \Roykv\SetRequest $request
+     * @return \Roykv\SetReply
+     */
+    public function Set(\Roykv\SetRequest $request);
+    /**
      * @param \Roykv\GetRequest $request
      * @return \Roykv\GetReply
      */

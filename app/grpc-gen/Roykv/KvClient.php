@@ -17,6 +17,20 @@ class KvClient extends \Grpc\BaseStub {
     }
 
     /**
+     * @param \Roykv\SetRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\SetReply[]|\Roykv\SetReply|\Grpc\StringifyAble[]
+     */
+    public function Set(\Roykv\SetRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/Set',
+        $argument,
+        ['\Roykv\SetReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
      * @param \Roykv\GetRequest $argument input argument
      * @param array $metadata metadata
      * @param array $options call options
