@@ -8,6 +8,7 @@ use App\components\Parser;
 use App\components\plans\Plan;
 use App\components\storage\pika\Pika;
 use App\components\storage\pika\Roykv;
+use Roykv\BeginRequest;
 use Roykv\SetRequest;
 use SwFwLess\components\http\Response;
 use SwFwLess\facades\Log;
@@ -18,6 +19,16 @@ class QueryService extends BaseService
 {
     public function select()
     {
+        $client = new TxnClient();
+        $reply = $client->Begin(new BeginRequest());
+        var_dump($reply->getTxnId());
+        return [
+            'code' => 0,
+            'msg' => 'ok',
+            'data' => [
+            ],
+        ];
+
 //        $partitions = [];
 //        $partitions[] = [
 //            'lower' => '',

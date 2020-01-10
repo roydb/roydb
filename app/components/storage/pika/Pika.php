@@ -8,6 +8,8 @@ use SwFwLess\facades\RedisPool;
 
 class Pika extends KvStorage
 {
+    protected $indexExistsCache = [];
+
     /**
      * @param $index
      * @param $callback
