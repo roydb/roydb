@@ -4,6 +4,7 @@ namespace App\components\storage\pika;
 
 use App\components\storage\KvStorage;
 use SwFwLess\components\redis\RedisWrapper;
+use SwFwLess\components\swoole\Scheduler;
 use SwFwLess\facades\RedisPool;
 
 class Pika extends KvStorage
@@ -141,8 +142,31 @@ class Pika extends KvStorage
         $redis = RedisPool::pick('pika');
         try {
             if (!$new) {
-                //todo optimization exists result cache
-                if (!$redis->exists($name)) {
+                $cache = Scheduler::withoutPreemptive(function () use ($name) {
+                    if (array_key_exists($name, $this->indexExistsCache)) {
+                        return $this->indexExistsCache[$name];
+                    }
+
+                    return null;
+                });
+
+                if (!is_null($cache)) {
+                    if (!$cache) {
+                        RedisPool::release($redis);
+                        return false;
+                    } else {
+                        return $redis;
+                    }
+                }
+
+                $indexExists = $redis->exists($name);
+
+                Scheduler::withoutPreemptive(function () use ($name, $indexExists) {
+                    $this->indexExistsCache[$name] = $indexExists;
+                });
+
+                if (!$indexExists) {
+                    RedisPool::release($redis);
                     return false;
                 }
             }
