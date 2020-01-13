@@ -744,7 +744,7 @@ abstract class KvStorage extends AbstractStorage
 
                 $indexData = [];
 
-                $usingPrimaryIndex = ($field === 'id'); //todo fetch primary key from schema meta data
+                $usingPrimaryIndex = ($field === $this->getPrimaryKeyBySchema($schema));
 
                 $coroutineTotal = 3;
                 $coroutineCount = 0;
@@ -897,7 +897,7 @@ abstract class KvStorage extends AbstractStorage
                     $offsetLimitCount = $offset + $limitCount;
                 }
 
-                if ((!$usingPrimaryIndex) || ($field === 'id')) { //todo fetch primary key from schema meta data
+                if ((!$usingPrimaryIndex) || ($field === $this->getPrimaryKeyBySchema($schema))) {
                     if ($conditionOperator === '=') {
                         if (!$isNot) {
                             $itStart = $conditionValue;
@@ -1106,7 +1106,7 @@ abstract class KvStorage extends AbstractStorage
 
                 $indexData = [];
 
-                $usingPrimaryIndex = ($operandValue1 === 'id'); //todo fetch primary key from schema meta data
+                $usingPrimaryIndex = ($operandValue1 === $this->getPrimaryKeyBySchema($schema));
 
                 $coroutineTotal = 3;
                 $coroutineCount = 0;
@@ -1257,7 +1257,7 @@ abstract class KvStorage extends AbstractStorage
                     $offsetLimitCount = $offset + $limitCount;
                 }
 
-                if ((!$usingPrimaryIndex) || ($operandValue1 === 'id')) { //todo fetch primary key from schema meta data
+                if ((!$usingPrimaryIndex) || ($operandValue1 === $this->getPrimaryKeyBySchema($schema))) {
                     if ($isNot) {
                         $splitConditionTree = new ConditionTree();
                         $splitConditionTree->setLogicOperator('and')
@@ -1678,7 +1678,7 @@ abstract class KvStorage extends AbstractStorage
             return [];
         }
 
-        $idList = array_column($indexData, 'id'); //todo fetch primary key from schema meta data
+        $idList = array_column($indexData, $this->getPrimaryKeyBySchema($schema));
         if (count($idList) <= 0) {
             return [];
         }
