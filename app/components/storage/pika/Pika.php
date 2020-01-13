@@ -177,4 +177,9 @@ class Pika extends KvStorage
             throw $e;
         }
     }
+
+    protected function dataSchemaCount()
+    {
+        //todo
+    }
 }

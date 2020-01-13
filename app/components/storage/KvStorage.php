@@ -467,6 +467,11 @@ abstract class KvStorage extends AbstractStorage
         return $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
     }
 
+    public function count()
+    {
+        //todo
+    }
+
     /**
      * @param $schema
      * @param $limit
