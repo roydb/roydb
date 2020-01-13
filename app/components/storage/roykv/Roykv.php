@@ -149,7 +149,7 @@ class Roykv extends KvStorage
         return $values;
     }
 
-    protected function dataSchemaCount()
+    protected function dataSchemaCountAll($index, $schema)
     {
         //todo
     }

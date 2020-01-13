@@ -178,8 +178,16 @@ class Pika extends KvStorage
         }
     }
 
-    protected function dataSchemaCount()
+    /**
+     * @param $index
+     * @param $schema
+     * @return mixed
+     * @throws \Throwable
+     */
+    protected function dataSchemaCountAll($index, $schema)
     {
-        //todo
+        return $this->safeUseIndex($index, function (RedisWrapper $index) use ($schema) {
+            return $index->hLen($schema);
+        });
     }
 }
