@@ -21,6 +21,10 @@ class SetRequest extends \Google\Protobuf\Internal\Message
      * Generated from protobuf field <code>string value = 2;</code>
      */
     private $value = '';
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 3;</code>
+     */
+    private $txnId = 0;
 
     /**
      * Constructor.
@@ -30,6 +34,7 @@ class SetRequest extends \Google\Protobuf\Internal\Message
      *
      *     @type string $key
      *     @type string $value
+     *     @type int|string $txnId
      * }
      */
     public function __construct($data = NULL) {
@@ -77,6 +82,28 @@ class SetRequest extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkString($var, True);
         $this->value = $var;
+
+        return $this;
+    }
+
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 3;</code>
+     * @return int|string
+     */
+    public function getTxnId()
+    {
+        return $this->txnId;
+    }
+
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 3;</code>
+     * @param int|string $var
+     * @return $this
+     */
+    public function setTxnId($var)
+    {
+        GPBUtil::checkUint64($var);
+        $this->txnId = $var;
 
         return $this;
     }

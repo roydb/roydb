@@ -3,7 +3,8 @@
 namespace App\components\storage\pika;
 
 use App\components\storage\KvStorage;
-use App\services\KvClient;
+use App\services\roykv\KvClient;
+use Roykv\CountRequest;
 use Roykv\GetAllRequest;
 use Roykv\GetRequest;
 use Roykv\MGetRequest;
@@ -149,8 +150,23 @@ class Roykv extends KvStorage
         return $values;
     }
 
-    protected function dataSchemaCountAll($index, $schema)
+    /**
+     * @param KvClient $btree
+     * @param $schema
+     * @return mixed
+     */
+    protected function dataSchemaCountAll($btree, $schema)
     {
-        //todo
+        $countReply = $btree->Count(
+            (new CountRequest())->setStartKey('data.schema.' . $schema . '::')
+                ->setEndKey('')
+                ->setKeyPrefix('data.schema.' . $schema . '::')
+        );
+
+        if ($countReply) {
+            return $countReply->getCount();
+        }
+
+        return 0;
     }
 }

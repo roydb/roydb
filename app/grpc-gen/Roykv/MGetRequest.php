@@ -17,6 +17,10 @@ class MGetRequest extends \Google\Protobuf\Internal\Message
      * Generated from protobuf field <code>repeated string keys = 1;</code>
      */
     private $keys;
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 2;</code>
+     */
+    private $txnId = 0;
 
     /**
      * Constructor.
@@ -25,6 +29,7 @@ class MGetRequest extends \Google\Protobuf\Internal\Message
      *     Optional. Data for populating the Message object.
      *
      *     @type string[]|\Google\Protobuf\Internal\RepeatedField $keys
+     *     @type int|string $txnId
      * }
      */
     public function __construct($data = NULL) {
@@ -50,6 +55,28 @@ class MGetRequest extends \Google\Protobuf\Internal\Message
     {
         $arr = GPBUtil::checkRepeatedField($var, \Google\Protobuf\Internal\GPBType::STRING);
         $this->keys = $arr;
+
+        return $this;
+    }
+
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 2;</code>
+     * @return int|string
+     */
+    public function getTxnId()
+    {
+        return $this->txnId;
+    }
+
+    /**
+     * Generated from protobuf field <code>uint64 txnId = 2;</code>
+     * @param int|string $var
+     * @return $this
+     */
+    public function setTxnId($var)
+    {
+        GPBUtil::checkUint64($var);
+        $this->txnId = $var;
 
         return $this;
     }

@@ -8,7 +8,9 @@ use App\components\Parser;
 use App\components\plans\Plan;
 use App\components\storage\pika\Pika;
 use App\components\storage\pika\Roykv;
+use App\services\roykv\KvClient;
 use Roykv\BeginRequest;
+use Roykv\CountRequest;
 use Roykv\SetRequest;
 use SwFwLess\components\http\Response;
 use SwFwLess\facades\Log;
@@ -19,15 +21,23 @@ class QueryService extends BaseService
 {
     public function select()
     {
-        $client = new TxnClient();
-        $reply = $client->Begin(new BeginRequest());
-        var_dump($reply->getTxnId());
-        return [
-            'code' => 0,
-            'msg' => 'ok',
-            'data' => [
-            ],
-        ];
+//        $countReply = (new KvClient())->Count(
+//            (new CountRequest())->setStartKey('data.schema.test1::')
+//                ->setEndKey('')
+//                ->setKeyPrefix('data.schema.test1::')
+//        );
+//
+//        var_dump($countReply->getCount());
+
+//        $client = new TxnClient();
+//        $reply = $client->Begin(new BeginRequest());
+//        var_dump($reply->getTxnId());
+//        return [
+//            'code' => 0,
+//            'msg' => 'ok',
+//            'data' => [
+//            ],
+//        ];
 
 //        $partitions = [];
 //        $partitions[] = [

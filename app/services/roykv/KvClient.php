@@ -1,6 +1,6 @@
 <?php
 
-namespace App\services;
+namespace App\services\roykv;
 
 /**
  *
@@ -13,6 +13,6 @@ class KvClient  extends \Grpc\ClientStub
 
     protected $grpc_client = \Roykv\KvClient::class;
 
-    protected $endpoint = '127.0.0.1;9999';
+    protected $endpoint = '127.0.0.1:9999';
 
 }

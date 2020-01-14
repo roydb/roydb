@@ -9,9 +9,9 @@ use Google\Protobuf\Internal\RepeatedField;
 use Google\Protobuf\Internal\GPBUtil;
 
 /**
- * Generated from protobuf message <code>roykv.ScanRequest</code>
+ * Generated from protobuf message <code>roykv.CountRequest</code>
  */
-class ScanRequest extends \Google\Protobuf\Internal\Message
+class CountRequest extends \Google\Protobuf\Internal\Message
 {
     /**
      * Generated from protobuf field <code>string startKey = 1;</code>
@@ -26,11 +26,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
      */
     private $keyPrefix = '';
     /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
-     */
-    private $limit = 0;
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
+     * Generated from protobuf field <code>uint64 txnId = 4;</code>
      */
     private $txnId = 0;
 
@@ -43,7 +39,6 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
      *     @type string $startKey
      *     @type string $endKey
      *     @type string $keyPrefix
-     *     @type int|string $limit
      *     @type int|string $txnId
      * }
      */
@@ -119,29 +114,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
-     * @return int|string
-     */
-    public function getLimit()
-    {
-        return $this->limit;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
-     * @param int|string $var
-     * @return $this
-     */
-    public function setLimit($var)
-    {
-        GPBUtil::checkUint64($var);
-        $this->limit = $var;
-
-        return $this;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
+     * Generated from protobuf field <code>uint64 txnId = 4;</code>
      * @return int|string
      */
     public function getTxnId()
@@ -150,7 +123,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
+     * Generated from protobuf field <code>uint64 txnId = 4;</code>
      * @param int|string $var
      * @return $this
      */

@@ -29,6 +29,8 @@ abstract class KvStorage extends AbstractStorage
 
     abstract protected function dataSchemaMGet($btree, $schema, $idList);
 
+    abstract protected function dataSchemaCountAll($btree, $schema);
+
     /**
      * @param $schema
      * @return mixed|null
@@ -467,9 +469,14 @@ abstract class KvStorage extends AbstractStorage
         return $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
     }
 
-    public function count()
+    public function countAll($schema)
     {
-        //todo
+        $btree = $this->openBtree($schema);
+        if ($btree === false) {
+            return 0;
+        }
+
+        return $this->dataSchemaCountAll($btree, $schema);
     }
 
     /**

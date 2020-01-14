@@ -64,6 +64,7 @@ class QueryPlan
     protected $storageGetLimit;
     protected $indexSuggestions;
     protected $nativeOrder;
+    protected $countAll;
 
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
@@ -332,13 +333,31 @@ class QueryPlan
      * @return array|mixed
      * @throws \Throwable
      */
-    public function execute()
+    protected function countAll()
     {
-        $resultSet = [];
+        $schema = $this->schemas[0];
+        $count = $this->storage->countAll($schema['table']);
+        $columns = [];
+        $column = $this->columns[0];
+        $columns[] = (new Column())->setValue($count)
+            ->setType('const')
+            ->setAlias($column->getAlias());
+        $resultSet[] = [];
+        $resultSet = $this->resultSetColumnsTransform($columns, $resultSet);
+        $resultSet = $this->resultSetHavingFilter($resultSet);
+        $resultSet = $this->resultSetColumnsFilter($columns, $resultSet);
 
-        //todo count(*) optimization
+        return $resultSet;
+    }
 
+    /**
+     * @return array
+     * @throws \Throwable
+     */
+    protected function query()
+    {
         if (!is_null($this->schemas)) {
+            $resultSet = [];
             $hasJoin = false;
             foreach ($this->schemas as $i => $schema) {
                 if ($i > 0) {
@@ -384,6 +403,19 @@ class QueryPlan
         $resultSet = $this->resultSetLimit($resultSet);
 
         return $resultSet;
+    }
+
+    /**
+     * @return array|mixed
+     * @throws \Throwable
+     */
+    public function execute()
+    {
+        if ($this->countAll) {
+            return $this->countAll();
+        } else {
+            return $this->query();
+        }
     }
 
     protected function joinResultSet($resultSet, $schema)
@@ -1269,6 +1301,8 @@ class QueryPlan
     protected function resultSetColumnsTransform($columns, $resultSet)
     {
         $columnNames = [];
+        /** @var Column[] $constColumns */
+        $constColumns = [];
         /** @var Column[] $aliasColumns */
         $aliasColumns = [];
         foreach ($columns as $column) {
@@ -1279,11 +1313,19 @@ class QueryPlan
                 if (!is_null($columnAlias)) {
                     $aliasColumns[] = $column;
                 }
+                if ($column->getType() === 'const') {
+                    $constColumns[] = $column;
+                }
             }
         }
 
         foreach ($resultSet as $i => $row) {
             $transformedRow = [];
+            foreach ($constColumns as $constColumn) {
+                $constColumnValue = $constColumn->getValue();
+                $transformedRow[$constColumnValue] = $constColumnValue;
+                $row[$constColumnValue] = $constColumnValue;
+            }
             foreach ($aliasColumns as $aliasColumn) {
                 $aliasColumnName = $aliasColumn->getAlias()['name'];
                 $originColumnName = $aliasColumn->getValue();
@@ -1308,8 +1350,6 @@ class QueryPlan
     protected function resultSetColumnsFilter($columns, $resultSet)
     {
         $columnNames = [];
-        /** @var Column[] $constColumns */
-        $constColumns = [];
         /** @var Column[] $aliasColumns */
         $aliasColumns = [];
         foreach ($columns as $column) {
@@ -1320,16 +1360,9 @@ class QueryPlan
                 if (!is_null($columnAlias)) {
                     $aliasColumns[] = $column;
                 }
-                if ($column->getType() === 'const') {
-                    $constColumns[] = $column;
-                }
             }
         }
         foreach ($resultSet as $i => $row) {
-            foreach ($constColumns as $constColumn) {
-                $constColumnValue = $constColumn->getValue();
-                $row[$constColumnValue] = $constColumnValue;
-            }
             foreach ($aliasColumns as $aliasColumn) {
                 $originColumnName = $aliasColumn->getValue();
                 unset($row[$originColumnName]);
@@ -1541,6 +1574,16 @@ class QueryPlan
     public function setNativeOrder(bool $nativeOrder): self
     {
         $this->nativeOrder = $nativeOrder;
+        return $this;
+    }
+
+    /**
+     * @param bool $countAll
+     * @return $this
+     */
+    public function setCountAll(bool $countAll): self
+    {
+        $this->countAll = $countAll;
         return $this;
     }
 }

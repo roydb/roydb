@@ -30,6 +30,7 @@ class RulesBasedOptimizer
 
         $this->setStorageGetLimit();
         $this->setIndexSuggestion();
+        $this->setCountAll();
 
         return $this->plan;
     }
@@ -48,8 +49,11 @@ class RulesBasedOptimizer
         if (!is_null($queryPlan->getGroups())) {
             return;
         }
-        if (count($queryPlan->getSchemas()) > 1) {
-            return;
+        $schemas = $queryPlan->getSchemas();
+        if (!is_null($schemas)) {
+            if (count($schemas) > 1) {
+                return;
+            }
         }
         $queryPlan->setStorageGetLimit($limit);
     }
@@ -114,5 +118,48 @@ class RulesBasedOptimizer
                 }
             }
         }
+    }
+
+    protected function setCountAll()
+    {
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+        if (!is_null($queryPlan->getGroups())) {
+            return;
+        }
+        $schemas = $queryPlan->getSchemas();
+        if (!is_null($schemas)) {
+            if (count($schemas) > 1) {
+                return;
+            }
+        }
+        $columns = $queryPlan->getColumns();
+        foreach ($columns as $column) {
+            if (!$column->isUdf()) {
+                if ($column->getType() !== 'const') {
+                    return;
+                }
+            } else {
+                if ($column->getValue() !== 'count') {
+                    return;
+                }
+                $subColumns = $column->getSubColumns();
+                foreach ($subColumns as $subColumn) {
+                    if ($subColumn->hasSubColumns()) {
+                        return;
+                    }
+                    if ($subColumn->getType() === 'colref') {
+                        if ($subColumn->getValue() !== '*') {
+                            return;
+                        }
+                    } else {
+                        if ($subColumn->getType() !== 'const') {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        $queryPlan->setCountAll(true);
     }
 }

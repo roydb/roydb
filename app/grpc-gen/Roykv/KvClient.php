@@ -100,4 +100,18 @@ class KvClient extends \Grpc\BaseStub {
         $metadata, $options);
     }
 
+    /**
+     * @param \Roykv\CountRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\CountReply[]|\Roykv\CountReply|\Grpc\StringifyAble[]
+     */
+    public function Count(\Roykv\CountRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/Count',
+        $argument,
+        ['\Roykv\CountReply', 'decode'],
+        $metadata, $options);
+    }
+
 }
