@@ -132,6 +132,11 @@ class RulesBasedOptimizer
             if (count($schemas) > 1) {
                 return;
             }
+        } else {
+            return;
+        }
+        if (!is_null($queryPlan->getCondition())) {
+            return;
         }
         $columns = $queryPlan->getColumns();
         foreach ($columns as $column) {
