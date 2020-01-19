@@ -8,7 +8,9 @@ use App\components\Parser;
 use App\components\plans\Plan;
 use App\components\storage\pika\Pika;
 use App\components\storage\pika\Roykv;
+use App\services\roydb\QueryClient;
 use App\services\roykv\KvClient;
+use Roydb\SelectRequest;
 use Roykv\BeginRequest;
 use Roykv\CountRequest;
 use Roykv\SetRequest;
@@ -220,11 +222,27 @@ class QueryService extends BaseService
 
         $start = microtime(true);
         $sql = $this->request->post('sql');
-        $ast = Parser::fromSql($sql)->parseAst();
-        $plan = Plan::create($ast, new Roykv());
-        $plan = RulesBasedOptimizer::fromPlan($plan)->optimize();
-        $plan = CostBasedOptimizer::fromPlan($plan)->optimize();
-        $resultSet = $plan->execute();
+        $selectResponse = (new QueryClient())->Select(
+            (new SelectRequest())->setSql($sql)
+        );
+
+        $resultSet = [];
+        $rows = $selectResponse->getRowData();
+        foreach ($rows as $row) {
+            $rowData = [];
+            foreach ($row->getField() as $field) {
+                $key = $field->getKey();
+                $valueType = $field->getValueType();
+                if ($valueType === 'integer') {
+                    $rowData[$key] = $field->getIntValue();
+                } elseif ($valueType === 'double') {
+                    $rowData[$key] = $field->getDoubleValue();
+                } elseif ($valueType === 'string') {
+                    $rowData[$key] = $field->getStrValue();
+                }
+            }
+            $resultSet[] = $rowData;
+        }
 
         return [
             'code' => 0,

@@ -31,5 +31,8 @@ return [
         '/query' => [
             ['POST', '/select', [\App\services\QueryService::class, 'select']],
         ],
+        '/roydb' => [
+            ['POST', '.Query/Select', [\App\services\roydb\QueryService::class, 'Select']],
+        ],
     ],
 ];

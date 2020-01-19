@@ -22,4 +22,7 @@ message Field {
     string key = 1;
     string valueType = 2;
     int64 intValue = 3;
+    double doubleValue = 4;
+    string strValue = 5;
+    string charset = 6;
 }
