@@ -2,12 +2,6 @@
 
 namespace App\services;
 
-use App\components\optimizers\CostBasedOptimizer;
-use App\components\optimizers\RulesBasedOptimizer;
-use App\components\Parser;
-use App\components\plans\Plan;
-use App\components\storage\pika\Pika;
-use App\components\storage\pika\Roykv;
 use App\services\roydb\QueryClient;
 use App\services\roykv\KvClient;
 use Roydb\SelectRequest;
