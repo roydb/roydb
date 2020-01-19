@@ -531,10 +531,10 @@ abstract class KvStorage extends AbstractStorage
             ) {
                 array_walk($subIndexData, function (&$row, $key) use (&$startKey) {
                     $startKey = $key;
-                    return json_decode($row, true);
+                    $row = json_decode($row, true);
                 });
 
-                $indexData[] = array_merge($indexData, $subIndexData);
+                $indexData = array_merge($indexData, $subIndexData);
 
                 if ($resultCount < $itLimit) {
                     return false;
