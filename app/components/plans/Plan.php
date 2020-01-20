@@ -11,6 +11,7 @@ class Plan
 {
     const STMT_TYPE_PLAN_MAPPING = [
         StmtType::SELECT => QueryPlan::class,
+        StmtType::INSERT => InsertPlan::class,
     ];
 
     /** @var Ast */
@@ -19,6 +20,7 @@ class Plan
     /** @var Storage */
     protected $storage;
 
+    /** @var QueryPlan|InsertPlan */
     protected $executePlan;
 
     public static function create(Ast $ast, AbstractStorage $storage)
@@ -39,6 +41,10 @@ class Plan
         $this->executePlan = new $planClass($this->ast, $this->storage);
     }
 
+    /**
+     * @return array|mixed
+     * @throws \Throwable
+     */
     public function execute()
     {
         return $this->executePlan->execute();
