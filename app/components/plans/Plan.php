@@ -12,6 +12,8 @@ class Plan
     const STMT_TYPE_PLAN_MAPPING = [
         StmtType::SELECT => QueryPlan::class,
         StmtType::INSERT => InsertPlan::class,
+        StmtType::DELETE => DeletePlan::class,
+        StmtType::UPDATE => UpdatePlan::class,
     ];
 
     /** @var Ast */
