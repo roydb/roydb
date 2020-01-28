@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package roydbudf;
+
+service Math {
+    rpc Sin (SinRequest) returns (SinResponse) {}
+}
+
+message SinRequest {
+    repeated double num = 1;
+}
+
+message SinResponse {
+    repeated double result = 1;
+}
