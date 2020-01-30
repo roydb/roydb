@@ -4,6 +4,8 @@ namespace App\components\udf;
 
 use App\components\elements\Aggregation;
 use App\components\elements\Column;
+use App\services\roydb\MathClient;
+use Roydbudf\SinRequest;
 
 class Math
 {
@@ -11,7 +13,7 @@ class Math
      * @param $parameters
      * @param $row
      * @param $resultSet
-     * @return float
+     * @return float|null
      * @throws \Exception
      */
     public static function sin($parameters, $row, $resultSet)
@@ -19,7 +21,7 @@ class Math
         /** @var Column $column */
         $column = $parameters[0];
         if ($column->getType() === 'const') {
-            return sin($column->getValue());
+            $degree = $column->getValue();
         } else {
             if ($column->getValue() === '*') {
                 throw new \Exception('Unsupported column named as \'*\' passed to sin function');
@@ -30,8 +32,16 @@ class Math
             } else {
                 $degree = $row[$column->getValue()];
             }
-            return sin($degree);
         }
+
+        $sinResult = (new MathClient())->Sin((new SinRequest())->setNum([$degree]));
+        if ($sinResult) {
+            foreach ($sinResult->getResult() as $value) {
+                return $value;
+            }
+        }
+
+        return null;
     }
 
     /**

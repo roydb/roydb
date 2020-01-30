@@ -55,6 +55,7 @@ class RulesBasedOptimizer
                 return;
             }
         }
+
         $queryPlan->setStorageGetLimit($limit);
     }
 

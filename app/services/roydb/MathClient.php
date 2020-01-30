@@ -1,6 +1,6 @@
 <?php
 
-namespace App\services;
+namespace App\services\roydb;
 
 /**
  *
@@ -9,8 +9,8 @@ namespace App\services;
 class MathClient  extends \Grpc\ClientStub
 {
 
-    use \SwFwLess\components\traits\Singleton;
-
     protected $grpc_client = \Roydbudf\MathClient::class;
+
+    protected $endpoint = '127.0.0.1:50052';
 
 }

@@ -15,6 +15,7 @@ use App\components\math\OperatorHandler;
 use App\components\storage\AbstractStorage;
 use App\components\udf\Aggregate;
 use App\components\udf\Math;
+use Co\Channel;
 
 class QueryPlan
 {
@@ -1178,8 +1179,18 @@ class QueryPlan
                     break;
                 }
 
+                $resultSetCnt = count($resultSet);
+                $udfCh = new Channel($resultSetCnt);
                 foreach ($resultSet as $rowIndex => $row) {
-                    $filtered = $this->rowUdfFilter($udfName, $row, $resultSet, $column);
+                    go(function () use (
+                        $rowIndex, $udfName, $row, $resultSet, $column, $udfCh
+                    ) {
+                        $udfCh->push([$rowIndex, $this->rowUdfFilter($udfName, $row, $resultSet, $column)]);
+                    });
+                }
+                for ($udfCoId = 0; $udfCoId < $resultSetCnt; ++$udfCoId) {
+                    list($rowIndex, $filtered) = $udfCh->pop();
+                    $row = $resultSet[$rowIndex];
                     if (is_array($filtered)) {
                         $existedColumnNames = [];
                         foreach ($columns as $existedColumnIndex => $existedColumn) {
