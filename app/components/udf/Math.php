@@ -34,14 +34,7 @@ class Math
             }
         }
 
-        $sinResult = (new MathClient())->Sin((new SinRequest())->setNum([$degree]));
-        if ($sinResult) {
-            foreach ($sinResult->getResult() as $value) {
-                return $value;
-            }
-        }
-
-        return null;
+        return sin($degree);
     }
 
     /**
