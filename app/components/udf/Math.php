@@ -4,8 +4,6 @@ namespace App\components\udf;
 
 use App\components\elements\Aggregation;
 use App\components\elements\Column;
-use App\services\roydb\MathClient;
-use Roydbudf\SinRequest;
 
 class Math
 {
