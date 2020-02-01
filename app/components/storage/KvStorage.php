@@ -466,7 +466,22 @@ abstract class KvStorage extends AbstractStorage
     public function get($schema, $condition, $limit, $indexSuggestions)
     {
         $condition = $this->filterConditionWithSchema($schema, $condition);
-        return $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
+        $indexData = $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
+
+        foreach ($indexData as $i => $row) {
+            foreach ($row as $column => $value) {
+                $row[$schema . '.' . $column] = $value;
+            }
+            $indexData[$i] = $row;
+        }
+
+        if (!is_null($limit)) {
+            $offset = ($limit['offset'] === '') ? 0 : ($limit['offset']);
+            $limit = $limit['rowcount'];
+            $indexData = array_slice($indexData, $offset, $limit);
+        }
+
+        return array_values($indexData);
     }
 
     public function countAll($schema)
@@ -1729,13 +1744,6 @@ abstract class KvStorage extends AbstractStorage
             $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);
         }
 
-        foreach ($indexData as $i => $row) {
-            foreach ($row as $column => $value) {
-                $row[$schema . '.' . $column] = $value;
-            }
-            $indexData[$i] = $row;
-        }
-
-        return array_values($indexData);
+        return $indexData;
     }
 }
