@@ -56,6 +56,8 @@ class RulesBasedOptimizer
             }
         }
 
+        //todo column agg udf
+
         $queryPlan->setStorageGetLimit($limit);
     }
 

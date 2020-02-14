@@ -1311,7 +1311,6 @@ class QueryPlan
 
     protected function resultSetColumnsTransform($columns, $resultSet)
     {
-        $columnNames = [];
         /** @var Column[] $constColumns */
         $constColumns = [];
         /** @var Column[] $aliasColumns */
@@ -1319,8 +1318,6 @@ class QueryPlan
         foreach ($columns as $column) {
             if (!$column->hasSubColumns()) {
                 $columnAlias = $column->getAlias();
-                $columnAliasName = isset($columnAlias) ? $columnAlias['name'] : null;
-                $columnNames[] = $columnAliasName ?? $column->getValue();
                 if (!is_null($columnAlias)) {
                     $aliasColumns[] = $column;
                 }
@@ -1376,7 +1373,9 @@ class QueryPlan
         foreach ($resultSet as $i => $row) {
             foreach ($aliasColumns as $aliasColumn) {
                 $originColumnName = $aliasColumn->getValue();
-                unset($row[$originColumnName]);
+                if ($originColumnName !== ($aliasColumn->getAlias()['name'])) {
+                    unset($row[$originColumnName]);
+                }
             }
             if (!in_array('*', $columnNames)) {
                 foreach ($row as $k => $v) {
