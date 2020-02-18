@@ -33,5 +33,7 @@ class InsertPlan
     public function execute()
     {
         //todo
+
+        //todo 主键、索引冲突、创建索引
     }
 }
