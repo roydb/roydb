@@ -31,8 +31,12 @@ return [
         '/query' => [
             ['POST', '/select', [\App\services\QueryService::class, 'select']],
         ],
+        '/write' => [
+            ['POST', '/insert', [\App\services\WriteService::class, 'insert']],
+        ],
         '/roydb' => [
             ['POST', '.Query/Select', [\App\services\roydb\QueryService::class, 'Select']],
+            ['POST', '.Write/Insert', [\App\services\roydb\WriteService::class, 'Insert']],
         ],
     ],
 ];

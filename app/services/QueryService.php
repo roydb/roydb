@@ -220,6 +220,16 @@ class QueryService extends BaseService
             (new SelectRequest())->setSql($sql)
         );
 
+        if (!$selectResponse) {
+            return [
+                'code' => -1,
+                'msg' => 'failed',
+                'data' => [
+                    'result_set' => [],
+                ],
+            ];
+        }
+
         $resultSet = [];
         $rows = $selectResponse->getRowData();
         foreach ($rows as $row) {

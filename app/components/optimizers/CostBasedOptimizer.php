@@ -20,9 +20,12 @@ class CostBasedOptimizer
         $this->plan = $plan;
     }
 
+    /**
+     * @return Plan
+     */
     public function optimize()
     {
-        if (!($this->plan instanceof QueryPlan)) {
+        if (!($this->plan->getExecutePlan() instanceof QueryPlan)) {
             return $this->plan;
         }
 

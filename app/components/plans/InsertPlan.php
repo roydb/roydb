@@ -22,6 +22,7 @@ class InsertPlan
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
+        $this->storage = $storage;
 
         //todo sql校验
     }
@@ -33,6 +34,9 @@ class InsertPlan
     public function execute()
     {
         //todo
+        var_dump($this->ast);
+
+        return 0;
 
         //todo 主键、索引冲突、创建索引
     }
