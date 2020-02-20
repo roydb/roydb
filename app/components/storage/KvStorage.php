@@ -460,13 +460,21 @@ abstract class KvStorage extends AbstractStorage
      * @param $condition
      * @param $limit
      * @param $indexSuggestions
+     * @param $usedColumns
      * @return array
      * @throws \Throwable
      */
-    public function get($schema, $condition, $limit, $indexSuggestions)
+    public function get($schema, $condition, $limit, $indexSuggestions, $usedColumns)
     {
         $condition = $this->filterConditionWithSchema($schema, $condition);
-        $indexData = $this->conditionFilter($schema, $condition, $condition, $limit, $indexSuggestions);
+        $indexData = $this->conditionFilter(
+            $schema,
+            $condition,
+            $condition,
+            $limit,
+            $indexSuggestions,
+            $usedColumns
+        );
 
         foreach ($indexData as $i => $row) {
             foreach ($row as $column => $value) {
@@ -675,6 +683,7 @@ abstract class KvStorage extends AbstractStorage
      * @param $limit
      * @param $indexSuggestions
      * @param $isNot
+     * @param $usedColumns
      * @return array|mixed
      * @throws \Throwable
      */
@@ -684,7 +693,8 @@ abstract class KvStorage extends AbstractStorage
         Condition $condition,
         $limit,
         $indexSuggestions,
-        $isNot
+        $isNot,
+        $usedColumns
     )
     {
         $operatorHandler = new OperatorHandler($isNot);
@@ -782,7 +792,7 @@ abstract class KvStorage extends AbstractStorage
                         $usingPrimaryIndex, $schema, $field, $partitionIndex,
                         $itStart, $itEnd, $itLimit, $operatorHandler,
                         $conditionOperator, $conditionValue, $rootCondition,
-                        $offsetLimitCount, $channel
+                        $offsetLimitCount, $channel, $usedColumns
                     ) {
                         $indexName = $this->getIndexPartitionName(
                             $usingPrimaryIndex ? $schema : ($schema . '.' . $field),
@@ -806,7 +816,7 @@ abstract class KvStorage extends AbstractStorage
                             function ($formattedResult, $resultCount) use (
                                 &$indexData, $operatorHandler, $conditionOperator, $conditionValue,
                                 $usingPrimaryIndex, $rootCondition, $schema, $offsetLimitCount, &$skipFirst,
-                                &$itStart, $itLimit
+                                &$itStart, $itLimit, $usedColumns
                             ) {
                                 $subIndexData = [];
 
@@ -828,7 +838,12 @@ abstract class KvStorage extends AbstractStorage
 
                                 //Filter by root condition
                                 if (!$usingPrimaryIndex) {
-                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                    if (count($subIndexData) > 0) {
+                                        $indexColumns = array_keys($subIndexData[0]);
+                                        if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                        }
+                                    }
                                 }
                                 if ($rootCondition instanceof ConditionTree) {
                                     $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
@@ -968,7 +983,7 @@ abstract class KvStorage extends AbstractStorage
                     function ($formattedResult, $resultCount) use (
                         &$indexData, &$itStart, $usingPrimaryIndex, $conditionOperator,
                         $operatorHandler, $conditionValue, $field, $rootCondition,
-                        $schema, $itLimit, &$skipFirst, $offsetLimitCount
+                        $schema, $itLimit, &$skipFirst, $offsetLimitCount, $usedColumns
                     ) {
                         $subIndexData = [];
 
@@ -1001,7 +1016,10 @@ abstract class KvStorage extends AbstractStorage
 
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
-                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            $indexColumns = array_keys($subIndexData[0]);
+                            if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            }
                         }
                         if ($rootCondition instanceof ConditionTree) {
                             $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
@@ -1051,6 +1069,7 @@ abstract class KvStorage extends AbstractStorage
      * @param $limit
      * @param $indexSuggestions
      * @param $isNot
+     * @param $usedColumns
      * @return array|mixed
      * @throws \Throwable
      */
@@ -1060,7 +1079,8 @@ abstract class KvStorage extends AbstractStorage
         Condition $condition,
         $limit,
         $indexSuggestions,
-        $isNot
+        $isNot,
+        $usedColumns
     )
     {
         $operatorHandler = new OperatorHandler($isNot);
@@ -1120,7 +1140,8 @@ abstract class KvStorage extends AbstractStorage
                         $rootCondition,
                         $splitConditionTree,
                         $limit,
-                        $indexSuggestions
+                        $indexSuggestions,
+                        $usedColumns
                     );
                 } else {
                     $itStart = $operandValue2;
@@ -1143,7 +1164,7 @@ abstract class KvStorage extends AbstractStorage
                     go(function () use (
                         $usingPrimaryIndex, $schema, $operandValue1, $partitionIndex,
                         $channel, $itStart, $itEnd, $itLimit, $offsetLimitCount, $operatorHandler,
-                        $operandValue2, $operandValue3, $rootCondition
+                        $operandValue2, $operandValue3, $rootCondition, $usedColumns
                     ) {
                         $indexName = $this->getIndexPartitionName(
                             $usingPrimaryIndex ? $schema : ($schema . '.' . $operandValue1),
@@ -1167,7 +1188,7 @@ abstract class KvStorage extends AbstractStorage
                             function ($formattedResult, $resultCount) use (
                                 &$indexData, $operatorHandler, $operandValue2, $operandValue3,
                                 $usingPrimaryIndex, $schema, $rootCondition, $offsetLimitCount,
-                                $itLimit, &$skipFirst, &$itStart
+                                $itLimit, &$skipFirst, &$itStart, $usedColumns
                             ) {
                                 $subIndexData = [];
 
@@ -1190,7 +1211,10 @@ abstract class KvStorage extends AbstractStorage
 
                                 //Filter by root condition
                                 if (!$usingPrimaryIndex) {
-                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                    $indexColumns = array_keys($subIndexData[0]);
+                                    if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                    }
                                 }
                                 if ($rootCondition instanceof ConditionTree) {
                                     $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
@@ -1303,7 +1327,8 @@ abstract class KvStorage extends AbstractStorage
                             $rootCondition,
                             $splitConditionTree,
                             $limit,
-                            $indexSuggestions
+                            $indexSuggestions,
+                            $usedColumns
                         );
                     } else {
                         $itStart = $operandValue2;
@@ -1322,7 +1347,7 @@ abstract class KvStorage extends AbstractStorage
                     function ($formattedResult, $resultCount) use (
                         &$indexData, &$itStart, $usingPrimaryIndex, $operatorHandler,
                         $operandValue1, $operandValue2, $operandValue3, $schema, $rootCondition,
-                        $itLimit, &$skipFirst, $offsetLimitCount
+                        $itLimit, &$skipFirst, $offsetLimitCount, $usedColumns
                     ) {
                         $subIndexData = [];
 
@@ -1355,7 +1380,10 @@ abstract class KvStorage extends AbstractStorage
 
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
-                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            $indexColumns = array_keys($subIndexData[0]);
+                            if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            }
                         }
                         if ($rootCondition instanceof ConditionTree) {
                             $subIndexData = array_filter($subIndexData, function ($row) use ($schema, $rootCondition) {
@@ -1397,6 +1425,7 @@ abstract class KvStorage extends AbstractStorage
      * @param Condition $condition
      * @param $limit
      * @param $indexSuggestions
+     * @param $usedColumns
      * @param bool $isNot
      * @return array|mixed
      * @throws \Throwable
@@ -1407,6 +1436,7 @@ abstract class KvStorage extends AbstractStorage
         Condition $condition,
         $limit,
         $indexSuggestions,
+        $usedColumns,
         bool $isNot = false
     )
     {
@@ -1436,9 +1466,13 @@ abstract class KvStorage extends AbstractStorage
 
         $conditionOperator = $condition->getOperator();
         if (in_array($conditionOperator, ['<', '<=', '=', '>', '>='])) {
-            $result = $this->filterBasicCompareCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBasicCompareCondition(
+                $schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot, $usedColumns
+            );
         } elseif ($conditionOperator === 'between') {
-            $result = $this->filterBetweenCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot);
+            $result = $this->filterBetweenCondition(
+                $schema, $rootCondition, $condition, $limit, $indexSuggestions, $isNot, $usedColumns
+            );
         } else {
             $result = [];
         }
@@ -1457,6 +1491,7 @@ abstract class KvStorage extends AbstractStorage
      * @param ConditionTree $conditionTree
      * @param $limit
      * @param $indexSuggestions
+     * @param $usedColumns
      * @param bool $isNot
      * @return array
      * @throws \Throwable
@@ -1467,6 +1502,7 @@ abstract class KvStorage extends AbstractStorage
         ConditionTree $conditionTree,
         $limit,
         $indexSuggestions,
+        $usedColumns,
         bool $isNot = false
     )
     {
@@ -1608,7 +1644,7 @@ abstract class KvStorage extends AbstractStorage
 
         foreach ($subConditions as $i => $subCondition) {
             go(function () use (
-                $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel, $rootCondition
+                $subCondition, $schema, $limit, $indexSuggestions, $isNot, $channel, $rootCondition, $usedColumns
             ) {
                 if ($subCondition instanceof Condition) {
                     $subResult = $this->filterCondition(
@@ -1617,6 +1653,7 @@ abstract class KvStorage extends AbstractStorage
                         $subCondition,
                         $limit,
                         $indexSuggestions,
+                        $usedColumns,
                         $isNot
                     );
                 } else {
@@ -1629,7 +1666,8 @@ abstract class KvStorage extends AbstractStorage
                                     $rootCondition,
                                     $subSubCondition,
                                     $limit,
-                                    $indexSuggestions
+                                    $indexSuggestions,
+                                    $usedColumns
                                 ));
                             } else {
                                 $subResult = array_merge($subResult, $this->filterConditionTree(
@@ -1637,7 +1675,8 @@ abstract class KvStorage extends AbstractStorage
                                     $rootCondition,
                                     $subSubCondition,
                                     $limit,
-                                    $indexSuggestions
+                                    $indexSuggestions,
+                                    $usedColumns
                                 ));
                             }
                         }
@@ -1648,6 +1687,7 @@ abstract class KvStorage extends AbstractStorage
                             $subCondition,
                             $limit,
                             $indexSuggestions,
+                            $usedColumns,
                             $isNot
                         );
                     }
@@ -1729,16 +1769,33 @@ abstract class KvStorage extends AbstractStorage
      * @param $condition
      * @param $limit
      * @param $indexSuggestions
+     * @param $usedColumns
      * @return array
      * @throws \Throwable
      */
-    protected function conditionFilter($schema, $rootCondition, $condition, $limit, $indexSuggestions)
+    protected function conditionFilter(
+        $schema, $rootCondition, $condition, $limit, $indexSuggestions, $usedColumns
+    )
     {
         if (!is_null($condition)) {
             if ($condition instanceof Condition) {
-                $indexData = $this->filterCondition($schema, $rootCondition, $condition, $limit, $indexSuggestions);
+                $indexData = $this->filterCondition(
+                    $schema,
+                    $rootCondition,
+                    $condition,
+                    $limit,
+                    $indexSuggestions,
+                    $usedColumns
+                );
             } else {
-                $indexData = $this->filterConditionTree($schema, $rootCondition, $condition, $limit, $indexSuggestions);
+                $indexData = $this->filterConditionTree(
+                    $schema,
+                    $rootCondition,
+                    $condition,
+                    $limit,
+                    $indexSuggestions,
+                    $usedColumns
+                );
             }
         } else {
             $indexData = $this->fetchAllPrimaryIndexData($schema, $limit);

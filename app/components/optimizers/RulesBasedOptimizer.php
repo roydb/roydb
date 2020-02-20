@@ -31,6 +31,7 @@ class RulesBasedOptimizer
         $this->setStorageGetLimit();
         $this->setIndexSuggestion();
         $this->setCountAll();
+        $this->setUsedColumns();
 
         return $this->plan;
     }
@@ -169,5 +170,14 @@ class RulesBasedOptimizer
             }
         }
         $queryPlan->setCountAll(true);
+    }
+
+    protected function setUsedColumns()
+    {
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+//        $queryPlan->setUsedColumns(['id']);
+
+        //todo
     }
 }

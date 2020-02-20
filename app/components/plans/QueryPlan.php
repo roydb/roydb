@@ -66,6 +66,7 @@ class QueryPlan
     protected $indexSuggestions;
     protected $nativeOrder;
     protected $countAll;
+    protected $usedColumns;
 
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
@@ -369,7 +370,8 @@ class QueryPlan
                         $schema['table'],
                         $this->extractWhereConditions(),
                         $this->storageGetLimit,
-                        $this->indexSuggestions
+                        $this->indexSuggestions,
+                        $this->usedColumns
                     );
                 }
             }
@@ -586,7 +588,8 @@ class QueryPlan
             $schema['table'],
             $rightResultSetConditionTree,
             $this->storageGetLimit,
-            $this->indexSuggestions
+            $this->indexSuggestions,
+            $this->usedColumns
         );
 
         if (!$qualifiedHashJoin) {
@@ -707,7 +710,8 @@ class QueryPlan
             $schemaTable,
             $rightResultSetConditionTree,
             $this->storageGetLimit,
-            $this->indexSuggestions
+            $this->indexSuggestions,
+            $this->usedColumns
         );
 
         if (!$qualifiedHashJoin) {
@@ -815,7 +819,8 @@ class QueryPlan
                 $schemaTable,
                 $this->extractWhereConditions(),
                 $this->storageGetLimit,
-                $this->indexSuggestions
+                $this->indexSuggestions,
+                $this->usedColumns
             );
         } else {
             $rightResultSetConditions = [];
@@ -840,7 +845,8 @@ class QueryPlan
                 $schemaTable,
                 $rightResultSetConditions,
                 $this->storageGetLimit,
-                $this->indexSuggestions
+                $this->indexSuggestions,
+                $this->usedColumns
             ));
         }
 
@@ -1594,6 +1600,16 @@ class QueryPlan
     public function setCountAll(bool $countAll): self
     {
         $this->countAll = $countAll;
+        return $this;
+    }
+
+    /**
+     * @param mixed $usedColumns
+     * @return $this
+     */
+    public function setUsedColumns($usedColumns): self
+    {
+        $this->usedColumns = $usedColumns;
         return $this;
     }
 }
