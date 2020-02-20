@@ -122,7 +122,7 @@ class QueryPlan
         }
     }
 
-    protected function extractConditions($conditionExpr)
+    public function extractConditions($conditionExpr)
     {
         $conditionTree = new ConditionTree();
         $condition = new Condition();
@@ -1453,6 +1453,14 @@ class QueryPlan
     public function getGroups(): ?array
     {
         return $this->groups;
+    }
+
+    /**
+     * @return Condition|ConditionTree|null
+     */
+    public function getHaving()
+    {
+        return $this->having;
     }
 
     /**

@@ -2,8 +2,11 @@
 
 namespace App\components\optimizers;
 
+use App\components\elements\Column;
 use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
+use App\components\elements\Group;
+use App\components\elements\Order;
 use App\components\plans\Plan;
 use App\components\plans\QueryPlan;
 
@@ -176,8 +179,154 @@ class RulesBasedOptimizer
     {
         /** @var QueryPlan $queryPlan */
         $queryPlan = $this->plan->getExecutePlan();
-//        $queryPlan->setUsedColumns(['id']);
 
-        //todo
+        $usedColumns = $this->getUsedColumns($queryPlan);
+
+        $queryPlan->setUsedColumns($usedColumns);
+    }
+
+    /**
+     * @param QueryPlan $plan
+     * @return array
+     */
+    protected function getUsedColumns($plan)
+    {
+        return array_merge(
+            $this->getUsedColumnsFromColumns($plan->getColumns()),
+            $this->getUsedColumnsFromSchemas($plan->getSchemas()),
+            $this->getUsedColumnsFromCondition($plan->getCondition()),
+            $this->getUsedColumnsFromGroup($plan->getGroups()),
+            $this->getUsedColumnsFromHaving($plan->getHaving()),
+            $this->getUsedColumnsFromOrder($plan->getOrders())
+        );
+    }
+
+    /**
+     * @param Column[] $columns
+     * @return array
+     */
+    protected function getUsedColumnsFromColumns($columns)
+    {
+        $usedColumns = [];
+
+        foreach ($columns as $column) {
+            if ($column->hasSubColumns()) {
+                $usedColumns = array_merge($usedColumns, $this->getUsedColumnsFromColumns($column->getSubColumns()));
+            } else {
+                if ($column->getType() === 'colref') {
+                    $usedColumns[] = $column->getValue();
+                }
+            }
+        }
+
+        return $usedColumns;
+    }
+
+    /**
+     * @param $schemas
+     * @return array
+     */
+    protected function getUsedColumnsFromSchemas($schemas)
+    {
+        $usedColumns = [];
+
+        if (!is_null($schemas)) {
+            return $usedColumns;
+        }
+
+        /** @var QueryPlan $queryPlan */
+        $queryPlan = $this->plan->getExecutePlan();
+
+        foreach ($schemas as $schema) {
+            if (!isset($schema['ref_clause'])) {
+                continue;
+            }
+
+            $usedColumns = array_merge(
+                $usedColumns,
+                $this->getUsedColumnsFromCondition($queryPlan->extractConditions($schema['ref_clause']))
+            );
+        }
+
+        return $usedColumns;
+    }
+
+    /**
+     * @param Condition|ConditionTree $condition
+     * @return array
+     */
+    protected function getUsedColumnsFromCondition($condition)
+    {
+        $usedColumns = [];
+
+        if (is_null($condition)) {
+            return $usedColumns;
+        }
+
+        if ($condition instanceof ConditionTree) {
+            foreach ($condition->getSubConditions() as $subCondition) {
+                $usedColumns = array_merge($usedColumns, $this->getUsedColumnsFromCondition($subCondition));
+            }
+        } else {
+            $operands = $condition->getOperands();
+            foreach ($operands as $operand) {
+                if ($operand->getType() === 'colref') {
+                    $usedColumns[] = $operand->getValue();
+                }
+            }
+        }
+
+        return $usedColumns;
+    }
+
+    /**
+     * @param Group[] $groups
+     * @return array
+     */
+    protected function getUsedColumnsFromGroup($groups)
+    {
+        $usedColumns = [];
+
+        if (is_null($groups)) {
+            return $usedColumns;
+        }
+
+        foreach ($groups as $group) {
+            if ($group->getType() === 'colref') {
+                $usedColumns[] = $group->getValue();
+            }
+        }
+
+        return $usedColumns;
+    }
+
+    /**
+     * @param $having
+     * @return array
+     */
+    protected function getUsedColumnsFromHaving($having)
+    {
+        return $this->getUsedColumnsFromCondition($having);
+    }
+
+    /**
+     * @param Order[] $orders
+     * @return array
+     */
+    protected function getUsedColumnsFromOrder($orders)
+    {
+        $usedColumns = [];
+
+        if (is_null($orders)) {
+            return $usedColumns;
+        }
+
+        foreach ($orders as $order) {
+            if ($order->getType() === 'colref') {
+                $usedColumns[] = $order->getValue();
+            }
+        }
+
+        return $usedColumns;
     }
 }

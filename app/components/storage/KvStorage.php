@@ -840,7 +840,10 @@ abstract class KvStorage extends AbstractStorage
                                 if (!$usingPrimaryIndex) {
                                     if (count($subIndexData) > 0) {
                                         $indexColumns = array_keys($subIndexData[0]);
-                                        if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                        if (is_null($usedColumns) ||
+                                            in_array('*', $usedColumns) ||
+                                            (count(array_diff($usedColumns, $indexColumns)) > 0)
+                                        ) {
                                             $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
                                         }
                                     }
@@ -1017,7 +1020,10 @@ abstract class KvStorage extends AbstractStorage
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
                             $indexColumns = array_keys($subIndexData[0]);
-                            if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                            if (is_null($usedColumns) ||
+                                in_array('*', $usedColumns) ||
+                                (count(array_diff($usedColumns, $indexColumns)) > 0)
+                            ) {
                                 $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
                             }
                         }
@@ -1212,7 +1218,10 @@ abstract class KvStorage extends AbstractStorage
                                 //Filter by root condition
                                 if (!$usingPrimaryIndex) {
                                     $indexColumns = array_keys($subIndexData[0]);
-                                    if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                                    if (is_null($usedColumns) ||
+                                        in_array('*', $usedColumns) ||
+                                        (count(array_diff($usedColumns, $indexColumns)) > 0)
+                                    ) {
                                         $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
                                     }
                                 }
@@ -1381,7 +1390,10 @@ abstract class KvStorage extends AbstractStorage
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
                             $indexColumns = array_keys($subIndexData[0]);
-                            if (is_null($usedColumns) || (count(array_diff($usedColumns, $indexColumns)) > 0)) {
+                            if (is_null($usedColumns) ||
+                                in_array('*', $usedColumns) ||
+                                (count(array_diff($usedColumns, $indexColumns)) > 0)
+                            ) {
                                 $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
                             }
                         }
