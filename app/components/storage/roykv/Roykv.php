@@ -133,10 +133,8 @@ class Roykv extends KvStorage
     {
         $values = [];
 
-        array_walk($idList, function (&$val) {
-            if (!is_int($val)) {
-                $val = (string) $val;
-            }
+        array_walk($idList, function (&$val) use ($schema) {
+            $val = 'data.schema.' . $schema . '::' . $val;
         });
 
         $mGetReply = $btree->MGet((new MGetRequest())->setKeys($idList));
