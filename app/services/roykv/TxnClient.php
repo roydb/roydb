@@ -11,6 +11,6 @@ class TxnClient  extends \Grpc\ClientStub
 
     protected $grpc_client = \Roykv\TxnClient::class;
 
-    protected $endpoint = '127.0.0.1:9999';
+    protected $endpoint = '127.0.0.1:50053';
 
 }
