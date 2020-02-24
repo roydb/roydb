@@ -1815,4 +1815,11 @@ abstract class KvStorage extends AbstractStorage
 
         return $indexData;
     }
+
+    public function set($schema, $rows)
+    {
+        //todo
+
+        return 0;
+    }
 }

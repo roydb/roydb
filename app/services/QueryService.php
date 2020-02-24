@@ -63,9 +63,13 @@ class QueryService extends BaseService
 //                    }
 //                }
 //
-//                $firstAlphabet = chr(ord('a') + ($i % 25));
+//                $firstAlphabet = chr(ord('a') + ($i % 26));
 //                $kvClient->Set(
 //                    (new SetRequest())->setKey('data.schema.test2.name::' . $firstAlphabet . 'oo')
+//                        ->setValue(json_encode([['id' => $i]]))
+//                );
+//                $kvClient->Set(
+//                    (new SetRequest())->setKey('data.schema.test2.type::1')
 //                        ->setValue(json_encode([['id' => $i]]))
 //                );
 //                $kvClient->Set(
@@ -80,6 +84,11 @@ class QueryService extends BaseService
 //                $kvClient->Set(
 //                    (new SetRequest())->setKey(
 //                        'data.schema.test1.name' . '::' . $firstAlphabet . 'oo')
+//                        ->setValue(json_encode([['id' => $i]]))
+//                );
+//                $kvClient->Set(
+//                    (new SetRequest())->setKey(
+//                        'data.schema.test1.type' . '::1')
 //                        ->setValue(json_encode([['id' => $i]]))
 //                );
 //                $kvClient->Set(
@@ -125,6 +134,11 @@ class QueryService extends BaseService
 //                        ],
 //                        'index' => [
 //                            [
+//                                'name' => 'type',
+//                                'columns' => ['type'],
+//                                'unique' => false,
+//                            ],
+//                            [
 //                                'name' => 'name',
 //                                'columns' => ['name'],
 //                                'unique' => false,
@@ -168,6 +182,11 @@ class QueryService extends BaseService
 //                            ],
 //                        ],
 //                        'index' => [
+//                            [
+//                                'name' => 'type',
+//                                'columns' => ['type'],
+//                                'unique' => false,
+//                            ],
 //                            [
 //                                'name' => 'name',
 //                                'columns' => ['name'],
