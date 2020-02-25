@@ -113,6 +113,30 @@ class InsertPlan
         $columnVal = null;
         if ($columnValObj['expr_type'] === 'const') {
             $columnVal = $columnValObj['base_expr'];
+
+            $isString = false;
+            if (strpos($columnVal, '"') === 0) {
+                $columnVal = substr($columnVal, 1);
+                $isString = true;
+            }
+            if (strpos($columnVal, '"') === (strlen($columnVal) - 1)) {
+                $columnVal = substr($columnVal, 0, -1);
+                $isString = true;
+            }
+
+            if (!$isString) {
+                if (ctype_digit($columnVal)) {
+                    $columnVal = intval($columnVal);
+                } elseif (is_numeric($columnVal) && (strpos($columnVal, '.') !== false)) {
+                    $columnVal = doubleval($columnVal);
+                } elseif ($columnVal === 'true') {
+                    $columnVal = true;
+                } elseif ($columnVal === 'false') {
+                    $columnVal = false;
+                } elseif ($columnVal === 'null') {
+                    $columnVal = null;
+                }
+            }
         } else {
             //todo udf...
         }
@@ -157,12 +181,6 @@ class InsertPlan
         } elseif ($columnValType === 'varchar') {
             if (!is_string($columnVal)) {
                 throw new \Exception('Column ' . $column['name'] . ' must be string');
-            }
-            if (strpos($columnVal, '"') === 0) {
-                $columnVal = substr($columnVal, 1);
-            }
-            if (strpos($columnVal, '"') === (strlen($columnVal) - 1)) {
-                $columnVal = substr($columnVal, 0, -1);
             }
         }
         //todo more types
