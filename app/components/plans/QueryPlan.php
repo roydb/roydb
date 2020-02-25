@@ -195,11 +195,27 @@ class QueryPlan
                 }
             } elseif ($expr['expr_type'] === 'const') {
                 $constExpr = $expr['base_expr'];
+                $isString = false;
                 if (strpos($constExpr, '"') === 0) {
                     $constExpr = substr($constExpr, 1);
+                    $isString = true;
                 }
                 if (strpos($constExpr, '"') === (strlen($constExpr) - 1)) {
                     $constExpr = substr($constExpr, 0, -1);
+                    $isString = true;
+                }
+                if (!$isString) {
+                    if (ctype_digit($constExpr)) {
+                        $constExpr = intval($constExpr);
+                    } elseif (is_numeric($constExpr) && (strpos($constExpr, '.') !== false)) {
+                        $constExpr = doubleval($constExpr);
+                    } elseif ($constExpr === 'true') {
+                        $constExpr = true;
+                    } elseif ($constExpr === 'false') {
+                        $constExpr = false;
+                    } elseif ($constExpr === 'null') {
+                        $constExpr = null;
+                    }
                 }
                 $condition->addOperands(
                     (new Operand())->setType('const')->setValue($constExpr)

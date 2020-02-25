@@ -6,6 +6,7 @@ use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
+use App\services\roykv\KvClient;
 use Co\Channel;
 use SwFwLess\components\swoole\Scheduler;
 
@@ -30,6 +31,15 @@ abstract class KvStorage extends AbstractStorage
     abstract protected function dataSchemaMGet($btree, $schema, $idList);
 
     abstract protected function dataSchemaCountAll($btree, $schema);
+
+    /**
+     * @param KvClient $btree
+     * @param $indexName
+     * @param $id
+     * @param $value
+     * @return bool
+     */
+    abstract protected function dataSchemaSet($btree, $indexName, $id, $value);
 
     /**
      * @param $schema
@@ -94,6 +104,10 @@ abstract class KvStorage extends AbstractStorage
         $schemaMeta = $this->getSchemaMetaData($schema);
         if (!$schemaMeta) {
             throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        if (!isset($schemaMeta['partition'])) {
+            return null;
         }
 
         $partition = $schemaMeta['partition'];
@@ -1816,10 +1830,97 @@ abstract class KvStorage extends AbstractStorage
         return $indexData;
     }
 
+    /**
+     * @param $schema
+     * @param $rows
+     * @return int
+     * @throws \Throwable
+     */
     public function set($schema, $rows)
     {
-        //todo
+        $affectedRows = 0;
 
-        return 0;
+        $schemaMeta = $this->getSchemaMetaData($schema);
+
+        $pk = $schemaMeta['pk'];
+        $pIndex = $this->openBtree($schema);
+        foreach ($rows as $row) {
+            if ($this->dataSchemaSet($pIndex, $schema, $row[$pk], json_encode($row))) {
+                if (isset($schemaMeta['index'])) {
+                    if ($this->setIndex($schemaMeta, $schema, $row)) {
+                        if (isset($schemaMeta['partition'])) {
+                            if ($this->setPartitionIndex($schemaMeta, $schema, $row)) {
+                                ++$affectedRows;
+                            }
+                        } else {
+                            ++$affectedRows;
+                        }
+                    }
+                } else {
+                    ++$affectedRows;
+                }
+            }
+        }
+
+        return $affectedRows;
+    }
+
+    protected function setIndex($schemaMeta, $schema, $row)
+    {
+        $pk = $schemaMeta['pk'];
+
+        foreach ($schemaMeta['index'] as $indexConfig) {
+            $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
+            $indexPk = $indexConfig['columns'][0];
+            //todo append or unique (atomic)
+            if (!$this->dataSchemaSet(
+                $indexBtree,
+                $schema . '.' . $indexConfig['name'],
+                $row[$indexPk],
+                json_encode([[$pk => $row[$pk]]])
+            )) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected function setPartitionIndex($schemaMeta, $schema, $row)
+    {
+        $pk = $schemaMeta['pk'];
+
+        $partition = $schemaMeta['partition'];
+        $partitionPk = $partition['key'];
+        $partitionPkVal = $row[$partitionPk];
+
+        $targetPartitionIndex = null;
+        foreach ($partition['range'] as $rangeIndex => $range) {
+            if ((($range['lower'] === '') || ($partitionPkVal >= $range['lower'])) &&
+                (($range['upper'] === '') || ($partitionPkVal <= $range['upper']))
+            ) {
+                $targetPartitionIndex = $rangeIndex;
+                break;
+            }
+        }
+
+        if (!is_null($targetPartitionIndex)) {
+            if ($partitionPk === $pk) {
+                $partitionIndexName = $schema . '.partition.' . (string)$targetPartitionIndex;
+                $partitionIndexData = json_encode($row);
+            } else {
+                $partitionIndexName = $schema . '.' . $partitionPk . '.partition.' . (string)$targetPartitionIndex;
+                $partitionIndexData = json_encode([[$pk => $row[$pk]]]);
+            }
+            $partitionIndex = $this->openBtree($partitionIndexName);
+            return $this->dataSchemaSet(
+                $partitionIndex,
+                $partitionIndexName,
+                $partitionPkVal,
+                $partitionIndexData
+            );
+        }
+
+        return true;
     }
 }

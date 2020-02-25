@@ -9,6 +9,7 @@ use Roykv\GetAllRequest;
 use Roykv\GetRequest;
 use Roykv\MGetRequest;
 use Roykv\ScanRequest;
+use Roykv\SetRequest;
 
 class Roykv extends KvStorage
 {
@@ -134,7 +135,7 @@ class Roykv extends KvStorage
         $values = [];
 
         array_walk($idList, function (&$val) use ($schema) {
-            $val = 'data.schema.' . $schema . '::' . $val;
+            $val = 'data.schema.' . $schema . '::' . ((string)$val);
         });
 
         $mGetReply = $btree->MGet((new MGetRequest())->setKeys($idList));
@@ -166,5 +167,26 @@ class Roykv extends KvStorage
         }
 
         return 0;
+    }
+
+    /**
+     * @param KvClient $btree
+     * @param $indexName
+     * @param $id
+     * @param $value
+     * @return bool
+     */
+    protected function dataSchemaSet($btree, $indexName, $id, $value)
+    {
+        $setReply = $btree->Set(
+            (new SetRequest())->setKey('data.schema.' . $indexName . '::' . $id)
+                ->setValue($value)
+        );
+
+        if ($setReply) {
+            return $setReply->getResult();
+        }
+
+        return false;
     }
 }
