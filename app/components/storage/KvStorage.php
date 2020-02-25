@@ -1872,7 +1872,7 @@ abstract class KvStorage extends AbstractStorage
         foreach ($schemaMeta['index'] as $indexConfig) {
             $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
             $indexPk = $indexConfig['columns'][0];
-            //todo append or unique (atomic)
+            //todo append or unique (atomic、batch put)
             if (!$this->dataSchemaSet(
                 $indexBtree,
                 $schema . '.' . $indexConfig['name'],
