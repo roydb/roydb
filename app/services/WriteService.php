@@ -33,4 +33,14 @@ class WriteService extends BaseService
             ],
         ];
     }
+
+    public function update()
+    {
+        //todo
+    }
+
+    public function delete()
+    {
+        //todo
+    }
 }

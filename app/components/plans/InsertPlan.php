@@ -40,6 +40,9 @@ class InsertPlan
         //todo sql校验
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function extractSchema()
     {
         $stmt = $this->ast->getStmt();
