@@ -506,8 +506,17 @@ abstract class KvStorage extends AbstractStorage
         return array_values($indexData);
     }
 
+    /**
+     * @param $schema
+     * @return int
+     * @throws \Throwable
+     */
     public function countAll($schema)
     {
+        if (is_null($this->getSchemaMetaData($schema))) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
         $btree = $this->openBtree($schema);
         if ($btree === false) {
             return 0;
@@ -524,6 +533,10 @@ abstract class KvStorage extends AbstractStorage
      */
     protected function fetchAllPrimaryIndexData($schema, $limit)
     {
+        if (is_null($this->getSchemaMetaData($schema))) {
+            throw new \Exception('Schema '. $schema .' not exists');
+        }
+
         $indexName = $schema;
 
         $index = $this->openBtree($indexName);
@@ -603,6 +616,10 @@ abstract class KvStorage extends AbstractStorage
      */
     protected function fetchPrimaryIndexDataById($id, $schema)
     {
+        if (is_null($this->getSchemaMetaData($schema))) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
         $index = $this->openBtree($schema);
         if ($index === false) {
             return null;
@@ -921,28 +938,9 @@ abstract class KvStorage extends AbstractStorage
 
                 return array_values($indexData);
             } else {
-                $index = false;
-                $indexName = null;
-                $usingPrimaryIndex = false;
-                $suggestIndex = $indexSuggestions[$schema][$field] ?? null;
-                if (!is_null($suggestIndex)) {
-                    $index = $this->openBtree($suggestIndex['indexName']);
-                    if ($index !== false) {
-                        $indexName = $suggestIndex['indexName'];
-                        $usingPrimaryIndex = $suggestIndex['primaryIndex'];
-                    }
-                }
-                if ($index === false) {
-                    $index = $this->openBtree($schema . '.' . $field);
-                    if ($index !== false) {
-                        $indexName = $schema . '.' . $field;
-                    }
-                }
-                if ($index === false) {
-                    $usingPrimaryIndex = true;
-                    $index = $this->openBtree($schema);
-                    $indexName = $schema;
-                }
+                list($indexName, $usingPrimaryIndex) = $this->selectIndex($schema, $field);
+                $index = $this->openBtree($indexName);
+
                 $itStart = '';
                 $itEnd = '';
 
@@ -1033,12 +1031,14 @@ abstract class KvStorage extends AbstractStorage
 
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
-                            $indexColumns = array_keys($subIndexData[0]);
-                            if (is_null($usedColumns) ||
-                                in_array('*', $usedColumns) ||
-                                (count(array_diff($usedColumns, $indexColumns)) > 0)
-                            ) {
-                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            if (count($subIndexData) > 0) {
+                                $indexColumns = array_keys($subIndexData[0]);
+                                if (is_null($usedColumns) ||
+                                    in_array('*', $usedColumns) ||
+                                    (count(array_diff($usedColumns, $indexColumns)) > 0)
+                                ) {
+                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                }
                             }
                         }
                         if ($rootCondition instanceof ConditionTree) {
@@ -1231,12 +1231,14 @@ abstract class KvStorage extends AbstractStorage
 
                                 //Filter by root condition
                                 if (!$usingPrimaryIndex) {
-                                    $indexColumns = array_keys($subIndexData[0]);
-                                    if (is_null($usedColumns) ||
-                                        in_array('*', $usedColumns) ||
-                                        (count(array_diff($usedColumns, $indexColumns)) > 0)
-                                    ) {
-                                        $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                    if (count($subIndexData) > 0) {
+                                        $indexColumns = array_keys($subIndexData[0]);
+                                        if (is_null($usedColumns) ||
+                                            in_array('*', $usedColumns) ||
+                                            (count(array_diff($usedColumns, $indexColumns)) > 0)
+                                        ) {
+                                            $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                        }
                                     }
                                 }
                                 if ($rootCondition instanceof ConditionTree) {
@@ -1297,28 +1299,9 @@ abstract class KvStorage extends AbstractStorage
 
                 return array_values($indexData);
             } else {
-                $index = false;
-                $usingPrimaryIndex = false;
-                $indexName = null;
-                $suggestIndex = $indexSuggestions[$schema][$operandValue1] ?? null;
-                if (!is_null($suggestIndex)) {
-                    $index = $this->openBtree($suggestIndex['indexName']);
-                    if ($index !== false) {
-                        $indexName = $suggestIndex['indexName'];
-                        $usingPrimaryIndex = $suggestIndex['primaryIndex'];
-                    }
-                }
-                if ($index === false) {
-                    $index = $this->openBtree($schema . '.' . $operandValue1);
-                    if ($index !== false) {
-                        $indexName = $schema . '.' . $operandValue1;
-                    }
-                }
-                if ($index === false) {
-                    $usingPrimaryIndex = true;
-                    $index = $this->openBtree($schema);
-                    $indexName = $schema;
-                }
+                list($indexName, $usingPrimaryIndex) = $this->selectIndex($schema, $operandValue1);
+                $index = $this->openBtree($indexName);
+
                 $itStart = '';
                 $itEnd = '';
                 $itLimit = 10000; //must greater than 1
@@ -1403,12 +1386,14 @@ abstract class KvStorage extends AbstractStorage
 
                         //Filter by root condition
                         if (!$usingPrimaryIndex) {
-                            $indexColumns = array_keys($subIndexData[0]);
-                            if (is_null($usedColumns) ||
-                                in_array('*', $usedColumns) ||
-                                (count(array_diff($usedColumns, $indexColumns)) > 0)
-                            ) {
-                                $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                            if (count($subIndexData) > 0) {
+                                $indexColumns = array_keys($subIndexData[0]);
+                                if (is_null($usedColumns) ||
+                                    in_array('*', $usedColumns) ||
+                                    (count(array_diff($usedColumns, $indexColumns)) > 0)
+                                ) {
+                                    $subIndexData = $this->fetchAllColumnsByIndexData($subIndexData, $schema);
+                                }
                             }
                         }
                         if ($rootCondition instanceof ConditionTree) {
@@ -1922,5 +1907,35 @@ abstract class KvStorage extends AbstractStorage
         }
 
         return true;
+    }
+
+    /**
+     * @param $schema
+     * @param $column
+     * @return array
+     * @throws \Throwable
+     */
+    protected function selectIndex($schema, $column)
+    {
+        $schemaMetaData = $this->getSchemaMetaData($schema);
+        if (is_null($schemaMetaData)) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        $pk = $schemaMetaData['pk'];
+
+        if ($pk === $column) {
+            return [$schema, true];
+        }
+
+        $indexMeta = $schemaMetaData['index'] ?? [];
+
+        foreach ($indexMeta as $indexMetaData) {
+            if (($indexMetaData['columns'][0] ?? null) === $column) {
+                return [$schema . '.' . $indexMetaData['name'], false];
+            }
+        }
+
+        return [$schema, true];
     }
 }

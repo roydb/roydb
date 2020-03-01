@@ -28,6 +28,7 @@ class Roykv extends KvStorage
      */
     protected function openBtree($name, $new = false)
     {
+        //todo 判断索引是否存在
         return $this->getKvClient();
     }
 
