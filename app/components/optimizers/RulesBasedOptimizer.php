@@ -38,6 +38,17 @@ class RulesBasedOptimizer
         return $this->plan;
     }
 
+    protected function hasSubColumns($columns)
+    {
+        foreach ($columns as $column) {
+            if ($column->hasSubColumns()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     protected function setStorageGetLimit()
     {
         /** @var QueryPlan $queryPlan */
@@ -60,6 +71,9 @@ class RulesBasedOptimizer
         }
 
         //todo column agg udf 排除
+        if ($this->hasSubColumns($queryPlan->getColumns())) {
+            return;
+        }
 
         $queryPlan->setStorageGetLimit($limit);
     }
@@ -167,7 +181,7 @@ class RulesBasedOptimizer
     {
         $usedColumns = [];
 
-        if (!is_null($schemas)) {
+        if (is_null($schemas)) {
             return $usedColumns;
         }
 
