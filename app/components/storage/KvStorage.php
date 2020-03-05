@@ -6,7 +6,6 @@ use App\components\elements\condition\Condition;
 use App\components\elements\condition\ConditionTree;
 use App\components\elements\condition\Operand;
 use App\components\math\OperatorHandler;
-use App\services\roykv\KvClient;
 use Co\Channel;
 use SwFwLess\components\swoole\Scheduler;
 
@@ -32,14 +31,9 @@ abstract class KvStorage extends AbstractStorage
 
     abstract protected function dataSchemaCountAll($btree, $schema);
 
-    /**
-     * @param KvClient $btree
-     * @param $indexName
-     * @param $id
-     * @param $value
-     * @return bool
-     */
     abstract protected function dataSchemaSet($btree, $indexName, $id, $value);
+
+    abstract protected function dataSchemaDel($btree, $indexName, $id);
 
     /**
      * @param $schema
@@ -1939,8 +1933,30 @@ abstract class KvStorage extends AbstractStorage
         return [$schema, true];
     }
 
+    /**
+     * @param $schema
+     * @param $pkList
+     * @return int
+     * @throws \Throwable
+     */
     public function del($schema, $pkList)
     {
+        $schemaMetaData = $this->getSchemaMetaData($schema);
+        if (is_null($schemaMetaData)) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
 
+        $deleted = 0;
+
+        $pIndex = $this->openBtree($schema);
+        foreach ($pkList as $pk) {
+            if ($this->dataSchemaDel($pIndex, $schema, $pk)) {
+                //todo
+            }
+        }
+
+        //todo pindex、index、partition
+
+        return $deleted;
     }
 }

@@ -5,6 +5,7 @@ namespace App\components\storage\roykv;
 use App\components\storage\KvStorage;
 use App\services\roykv\KvClient;
 use Roykv\CountRequest;
+use Roykv\DelRequest;
 use Roykv\GetAllRequest;
 use Roykv\GetRequest;
 use Roykv\MGetRequest;
@@ -190,8 +191,22 @@ class Roykv extends KvStorage
         return false;
     }
 
-    protected function dataSchemaDel($btree, $indexName, $idList)
+    /**
+     * @param KvClient $btree
+     * @param $indexName
+     * @param $id
+     * @return bool
+     */
+    protected function dataSchemaDel($btree, $indexName, $id)
     {
+        $delReply = $btree->Del(
+            (new DelRequest())->setKeys(['data.schema.' . $indexName . '::' . $id])
+        );
 
+        if ($delReply) {
+            return $delReply->getDeleted() > 0;
+        }
+
+        return false;
     }
 }

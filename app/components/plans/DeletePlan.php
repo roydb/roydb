@@ -82,16 +82,16 @@ class DeletePlan
     {
         $rows = $this->query();
 
+        $deleted = 0;
+
         foreach ($this->schemas as $schema) {
             $table = $schema['table'];
             $schemaMeta = $this->storage->getSchemaMetaData($table);
             $pkList = array_column($rows, $table . '.' . $schemaMeta['pk']);
-            $this->storage->del($table, $pkList);
+            $deleted += $this->storage->del($table, $pkList);
         }
 
-        return 1;
-
-        //todo 查询数据主键，批量删除
+        return $deleted;
 
     }
 }

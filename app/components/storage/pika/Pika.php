@@ -203,4 +203,16 @@ class Pika extends KvStorage
         //todo
         return false;
     }
+
+    /**
+     * @param $btree
+     * @param $indexName
+     * @param $id
+     * @return bool
+     */
+    protected function dataSchemaDel($btree, $indexName, $id)
+    {
+        //todo
+        return false;
+    }
 }
