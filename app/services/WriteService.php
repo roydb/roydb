@@ -3,6 +3,7 @@
 namespace App\services;
 
 use App\services\roydb\WriteClient;
+use Roydb\DeleteRequest;
 use Roydb\InsertRequest;
 use SwFwLess\services\BaseService;
 
@@ -41,6 +42,27 @@ class WriteService extends BaseService
 
     public function delete()
     {
-        //todo
+        $start = microtime(true);
+        $sql = $this->request->post('sql');
+        $deleteResponse = (new WriteClient())->Delete(
+            (new DeleteRequest())->setSql($sql)
+        );
+
+        if (!$deleteResponse) {
+            return [
+                'code' => -1,
+                'msg' => 'failed',
+                'data' => [],
+            ];
+        }
+
+        return [
+            'code' => 0,
+            'msg' => 'ok',
+            'data' => [
+                'affected_rows' => $deleteResponse->getAffectedRows(),
+                'time_usage' => microtime(true) - $start,
+            ],
+        ];
     }
 }

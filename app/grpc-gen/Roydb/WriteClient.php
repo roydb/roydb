@@ -30,4 +30,18 @@ class WriteClient extends \Grpc\BaseStub {
         $metadata, $options);
     }
 
+    /**
+     * @param \Roydb\DeleteRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roydb\DeleteResponse[]|\Roydb\DeleteResponse|\Grpc\StringifyAble[]
+     */
+    public function Delete(\Roydb\DeleteRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roydb.Write/Delete',
+        $argument,
+        ['\Roydb\DeleteResponse', 'decode'],
+        $metadata, $options);
+    }
+
 }

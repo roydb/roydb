@@ -114,4 +114,60 @@ class KvClient extends \Grpc\BaseStub {
         $metadata, $options);
     }
 
+    /**
+     * @param \Roykv\IncrRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\IncrReply[]|\Roykv\IncrReply|\Grpc\StringifyAble[]
+     */
+    public function Incr(\Roykv\IncrRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/Incr',
+        $argument,
+        ['\Roykv\IncrReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\AtomicOpRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\AtomicOpReply[]|\Roykv\AtomicOpReply|\Grpc\StringifyAble[]
+     */
+    public function AtomicOp(\Roykv\AtomicOpRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/AtomicOp',
+        $argument,
+        ['\Roykv\AtomicOpReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\BatchAtomicOpRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\BatchAtomicOpReply[]|\Roykv\BatchAtomicOpReply|\Grpc\StringifyAble[]
+     */
+    public function BatchAtomicOp(\Roykv\BatchAtomicOpRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/BatchAtomicOp',
+        $argument,
+        ['\Roykv\BatchAtomicOpReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\DelRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\DelReply[]|\Roykv\DelReply|\Grpc\StringifyAble[]
+     */
+    public function Del(\Roykv\DelRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.Kv/Del',
+        $argument,
+        ['\Roykv\DelReply', 'decode'],
+        $metadata, $options);
+    }
+
 }

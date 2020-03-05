@@ -6,7 +6,7 @@ use App\components\optimizers\CostBasedOptimizer;
 use App\components\optimizers\RulesBasedOptimizer;
 use App\components\Parser;
 use App\components\plans\Plan;
-use App\components\storage\pika\Roykv;
+use App\components\storage\roykv\Roykv;
 use Roydb\Field;
 use Roydb\RowData;
 use Roydb\SelectResponse;

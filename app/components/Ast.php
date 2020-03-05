@@ -49,6 +49,16 @@ class Ast
     }
 
     /**
+     * @param $stmt
+     * @return $this
+     */
+    public function setStmt($stmt)
+    {
+        $this->stmt = $stmt;
+        return $this;
+    }
+
+    /**
      * @return mixed
      */
     public function getStmtType()

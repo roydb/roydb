@@ -1938,4 +1938,9 @@ abstract class KvStorage extends AbstractStorage
 
         return [$schema, true];
     }
+
+    public function del($schema, $pkList)
+    {
+
+    }
 }

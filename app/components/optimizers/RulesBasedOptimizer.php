@@ -192,6 +192,9 @@ class RulesBasedOptimizer
             if (!isset($schema['ref_clause'])) {
                 continue;
             }
+            if ($schema['ref_clause'] === false) {
+                continue;
+            }
 
             $usedColumns = array_merge(
                 $usedColumns,

@@ -29,6 +29,7 @@ message Field {
 
 service Write {
     rpc Insert (InsertRequest) returns (InsertResponse) {}
+    rpc Delete (DeleteRequest) returns (DeleteResponse) {}
 }
 
 message InsertRequest {
@@ -36,5 +37,13 @@ message InsertRequest {
 }
 
 message InsertResponse {
+    int64 affectedRows = 1;
+}
+
+message DeleteRequest {
+    string sql = 1;
+}
+
+message DeleteResponse {
     int64 affectedRows = 1;
 }

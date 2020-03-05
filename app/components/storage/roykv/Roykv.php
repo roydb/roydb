@@ -1,6 +1,6 @@
 <?php
 
-namespace App\components\storage\pika;
+namespace App\components\storage\roykv;
 
 use App\components\storage\KvStorage;
 use App\services\roykv\KvClient;
@@ -188,5 +188,10 @@ class Roykv extends KvStorage
         }
 
         return false;
+    }
+
+    protected function dataSchemaDel($btree, $indexName, $idList)
+    {
+
     }
 }
