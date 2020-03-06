@@ -102,7 +102,7 @@ class Roykv extends KvStorage
     {
         while (($scanReply = $btree->Scan(
             (new ScanRequest())->setStartKey('data.schema.' . $indexName . '::' . $startKey)
-                ->setEndKey(($endKey === '') ? '' : ('data.schema' . $indexName . '::' . $endKey))
+                ->setEndKey(($endKey === '') ? '' : ('data.schema.' . $indexName . '::' . $endKey))
                 ->setKeyPrefix('data.schema.' . $indexName . '::')
                 ->setLimit($limit)
         ))) {

@@ -75,13 +75,11 @@ class DeletePlan
     }
 
     /**
-     * @return array|mixed
-     * @throws \Throwable
+     * @return int
      */
     public function execute()
     {
         $rows = $this->query();
-
         $deleted = 0;
 
         foreach ($this->schemas as $schema) {

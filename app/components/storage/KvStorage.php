@@ -1824,21 +1824,23 @@ abstract class KvStorage extends AbstractStorage
         $pk = $schemaMeta['pk'];
         $pIndex = $this->openBtree($schema);
         foreach ($rows as $row) {
-            if ($this->dataSchemaSet($pIndex, $schema, $row[$pk], json_encode($row))) {
-                if (isset($schemaMeta['index'])) {
-                    if ($this->setIndex($schemaMeta, $schema, $row)) {
-                        if (isset($schemaMeta['partition'])) {
-                            if ($this->setPartitionIndex($schemaMeta, $schema, $row)) {
-                                ++$affectedRows;
-                            }
-                        } else {
-                            ++$affectedRows;
-                        }
-                    }
-                } else {
-                    ++$affectedRows;
+            if (!$this->dataSchemaSet($pIndex, $schema, $row[$pk], json_encode($row))) {
+                continue;
+            }
+
+            if (isset($schemaMeta['index'])) {
+                if (!$this->setIndex($schemaMeta, $schema, $row)) {
+                    continue;
                 }
             }
+
+            if (isset($schemaMeta['partition'])) {
+                if (!$this->setPartitionIndex($schemaMeta, $schema, $row)) {
+                    continue;
+                }
+            }
+
+            ++$affectedRows;
         }
 
         return $affectedRows;
@@ -1950,13 +1952,101 @@ abstract class KvStorage extends AbstractStorage
 
         $pIndex = $this->openBtree($schema);
         foreach ($pkList as $pk) {
-            if ($this->dataSchemaDel($pIndex, $schema, $pk)) {
-                //todo
+            if (isset($schemaMetaData['index'])) {
+                if (!$this->delIndex($schemaMetaData, $schema, $pk)) {
+                    continue;
+                }
+            }
+
+            if (isset($schemaMetaData['partition'])) {
+                if (!$this->delPartitionIndex($schemaMetaData, $schema, $pk)) {
+                    continue;
+                }
+            }
+
+            if (!$this->dataSchemaDel($pIndex, $schema, $pk)) {
+                continue;
+            }
+
+            ++$deleted;
+        }
+
+        return $deleted;
+    }
+
+    /**
+     * @param $schemaMeta
+     * @param $schema
+     * @param $pk
+     * @return bool
+     * @throws \Throwable
+     */
+    protected function delIndex($schemaMeta, $schema, $pk)
+    {
+        $row = $this->fetchPrimaryIndexDataById($pk, $schema);
+        if (is_null($row)) {
+            return false;
+        }
+
+        foreach ($schemaMeta['index'] as $indexConfig) {
+            $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
+            $indexPk = $indexConfig['columns'][0];
+            //todo append or unique (atomic、batch put)
+            //todo bugfix 删掉其中一部分
+            if (!$this->dataSchemaDel(
+                $indexBtree,
+                $schema . '.' . $indexConfig['name'],
+                $row[$indexPk]
+            )) {
+                return false;
             }
         }
 
-        //todo pindex、index、partition
+        return true;
+    }
 
-        return $deleted;
+    /**
+     * @param $schemaMeta
+     * @param $schema
+     * @param $pk
+     * @return bool
+     * @throws \Throwable
+     */
+    protected function delPartitionIndex($schemaMeta, $schema, $pk)
+    {
+        $row = $this->fetchPrimaryIndexDataById($pk, $schema);
+        if (is_null($row)) {
+            return false;
+        }
+
+        $partition = $schemaMeta['partition'];
+        $partitionPk = $partition['key'];
+        $partitionPkVal = $row[$partitionPk];
+
+        $targetPartitionIndex = null;
+        foreach ($partition['range'] as $rangeIndex => $range) {
+            if ((($range['lower'] === '') || ($partitionPkVal >= $range['lower'])) &&
+                (($range['upper'] === '') || ($partitionPkVal <= $range['upper']))
+            ) {
+                $targetPartitionIndex = $rangeIndex;
+                break;
+            }
+        }
+
+        if (!is_null($targetPartitionIndex)) {
+            if ($partitionPk === $schemaMeta['pk']) {
+                $partitionIndexName = $schema . '.partition.' . (string)$targetPartitionIndex;
+            } else {
+                $partitionIndexName = $schema . '.' . $partitionPk . '.partition.' . (string)$targetPartitionIndex;
+            }
+            $partitionIndex = $this->openBtree($partitionIndexName);
+            return $this->dataSchemaDel(
+                $partitionIndex,
+                $partitionIndexName,
+                $partitionPkVal
+            );
+        }
+
+        return true;
     }
 }

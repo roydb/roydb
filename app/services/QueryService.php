@@ -52,7 +52,7 @@ class QueryService extends BaseService
 //        ];
 //
 //        $kvClient = new KvClient();
-//            for ($i = 1; $i < 100000; ++$i) {
+//            for ($i = 1; $i < 10000; ++$i) {
 //                $targetPartitionIndex = null;
 //                foreach ($partitions as $partitionIndex => $partition) {
 //                    if ((($partition['lower'] === '') || ($i >= $partition['lower'])) &&
