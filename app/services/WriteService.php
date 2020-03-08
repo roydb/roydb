@@ -5,10 +5,14 @@ namespace App\services;
 use App\services\roydb\WriteClient;
 use Roydb\DeleteRequest;
 use Roydb\InsertRequest;
+use Roydb\UpdateRequest;
 use SwFwLess\services\BaseService;
 
 class WriteService extends BaseService
 {
+    /**
+     * @return array
+     */
     public function insert()
     {
         $start = microtime(true);
@@ -35,11 +39,38 @@ class WriteService extends BaseService
         ];
     }
 
+    /**
+     * @return array
+     */
     public function update()
     {
-        //todo
+        $start = microtime(true);
+        $sql = $this->request->post('sql');
+        $updateResponse = (new WriteClient())->Update(
+            (new UpdateRequest())->setSql($sql)
+        );
+
+        if (!$updateResponse) {
+            return [
+                'code' => -1,
+                'msg' => 'failed',
+                'data' => [],
+            ];
+        }
+
+        return [
+            'code' => 0,
+            'msg' => 'ok',
+            'data' => [
+                'affected_rows' => $updateResponse->getAffectedRows(),
+                'time_usage' => microtime(true) - $start,
+            ],
+        ];
     }
 
+    /**
+     * @return array
+     */
     public function delete()
     {
         $start = microtime(true);

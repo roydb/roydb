@@ -17,5 +17,10 @@ interface WriteInterface
      * @return \Roydb\DeleteResponse
      */
     public function Delete(\Roydb\DeleteRequest $request);
+    /**
+     * @param \Roydb\UpdateRequest $request
+     * @return \Roydb\UpdateResponse
+     */
+    public function Update(\Roydb\UpdateRequest $request);
 
 }

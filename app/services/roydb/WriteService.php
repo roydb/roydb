@@ -51,4 +51,13 @@ class WriteService extends \SwFwLess\services\GrpcUnaryService implements WriteI
         return (new DeleteResponse())->setAffectedRows($affectedRows);
     }
 
+    /**
+     * @param \Roydb\UpdateRequest $request
+     * @return \Roydb\UpdateResponse|void
+     */
+    public function Update(\Roydb\UpdateRequest $request)
+    {
+        // TODO: Implement Update() method.
+    }
+
 }
