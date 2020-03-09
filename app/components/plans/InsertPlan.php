@@ -197,10 +197,7 @@ class InsertPlan
      */
     public function execute()
     {
-//        var_dump($this->table);
-//        var_dump($this->rows);
-
-        return $this->storage->set($this->table, $this->rows);
+        return $this->storage->add($this->table, $this->rows);
 
         //todo 主键、索引冲突、创建索引、schema校验
     }

@@ -22,23 +22,24 @@ class UpdatePlan
 
     protected $schemas;
 
-    /** @var Condition|ConditionTree|null  */
+    /** @var Condition|ConditionTree|null */
     protected $condition;
 
-    protected $values;
-    protected $rows;
+    protected $sets;
+    protected $updateRow;
 
     /**
      * UpdatePlan constructor.
      * @param Ast $ast
      * @param AbstractStorage $storage
+     * @throws \Exception
      */
     public function __construct(Ast $ast, AbstractStorage $storage)
     {
         $this->ast = $ast;
         $this->storage = $storage;
         $this->extractSchemas();
-        $this->extractValues();
+        $this->extractSets();
     }
 
     protected function extractSchemas()
@@ -49,11 +50,59 @@ class UpdatePlan
         }
     }
 
-    protected function extractValues()
+    /**
+     * @throws \Exception
+     */
+    protected function extractSets()
     {
-        //todo
+        $stmt = $this->ast->getStmt();
+        if (!isset($stmt['SET'])) {
+            throw new \Exception('Missing values in the sql');
+        }
+
+        $this->sets = $stmt['SET'];
+
+        $updateRow = [];
+
+        foreach ($this->sets as $set) {
+            $key = $set['sub_tree'][0]['base_expr'];
+            $value = $set['sub_tree'][2]['base_expr'];
+
+            $isString = false;
+            if (strpos($value, '"') === 0) {
+                $value = substr($value, 1);
+                $isString = true;
+            }
+            if (strpos($value, '"') === (strlen($value) - 1)) {
+                $value = substr($value, 0, -1);
+                $isString = true;
+            }
+
+            if (!$isString) {
+                if (ctype_digit($value)) {
+                    $value = intval($value);
+                } elseif (is_numeric($value) && (strpos($value, '.') !== false)) {
+                    $value = doubleval($value);
+                } elseif ($value === 'true') {
+                    $value = true;
+                } elseif ($value === 'false') {
+                    $value = false;
+                } elseif ($value === 'null') {
+                    $value = null;
+                }
+            }
+
+            $updateRow[$key] = $value;
+        }
+
+        $this->updateRow = $updateRow;
     }
 
+    /**
+     * @return array|mixed
+     * @throws \PHPSQLParser\exceptions\UnsupportedFeatureException
+     * @throws \Throwable
+     */
     protected function query()
     {
         $stmt = $this->ast->getStmt();
@@ -86,12 +135,35 @@ class UpdatePlan
         return $plan->execute();
     }
 
+    protected function extractUpdateRow($schema)
+    {
+        //todo
+        $rows = [];
+        return $rows;
+    }
+
     /**
-     * @return int
+     * @throws \PHPSQLParser\exceptions\UnsupportedFeatureException
+     * @throws \Throwable
      */
     public function execute()
     {
-        var_dump($this->query());
+        $affectedRows = 0;
+
+        $rows = $this->query();
+
+        foreach ($this->schemas as $schema) {
+            $table = $schema['table'];
+
+            $schemaMeta = $this->storage->getSchemaMetaData($table);
+            $pkList = array_column($rows, $table . '.' . $schemaMeta['pk']);
+
+            $affectedRows += $this->storage->update(
+                $table,
+                $pkList,
+                $this->extractUpdateRow($table)
+            );
+        }
         die;
     }
 }

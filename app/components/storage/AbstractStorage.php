@@ -10,7 +10,9 @@ abstract class AbstractStorage
 
     abstract public function countAll($schema);
 
-    abstract public function set($schema, $rows);
+    abstract public function add($schema, $rows);
 
     abstract public function del($schema, $pkList);
+
+    abstract public function update($schema, $pkList, $updateRow);
 }

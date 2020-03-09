@@ -1815,8 +1815,10 @@ abstract class KvStorage extends AbstractStorage
      * @return int
      * @throws \Throwable
      */
-    public function set($schema, $rows)
+    public function add($schema, $rows)
     {
+        //todo 已经存在的数据去重，根据pk
+
         $affectedRows = 0;
 
         $schemaMeta = $this->getSchemaMetaData($schema);
@@ -1864,6 +1866,11 @@ abstract class KvStorage extends AbstractStorage
                     return false;
                 } else {
                     $indexRows = json_decode($indexData, true);
+
+                    if (in_array($row[$pk], array_column($indexRows, $pk))) {
+                        return false;
+                    }
+
                     array_push($indexRows, [$pk => $row[$pk]]);
                     if (!$this->dataSchemaSet(
                         $indexBtree,
@@ -1965,6 +1972,8 @@ abstract class KvStorage extends AbstractStorage
      */
     public function del($schema, $pkList)
     {
+        //todo 优化，批量获取rows，不存在的直接过滤掉
+
         $schemaMetaData = $this->getSchemaMetaData($schema);
         if (is_null($schemaMetaData)) {
             throw new \Exception('Schema ' . $schema . ' not exists');
@@ -2091,5 +2100,18 @@ abstract class KvStorage extends AbstractStorage
         }
 
         return true;
+    }
+
+    /**
+     * @param $schema
+     * @param $pkList
+     * @param $updateRow
+     * @return int
+     */
+    public function update($schema, $pkList, $updateRow)
+    {
+        //todo
+
+        return 0;
     }
 }
