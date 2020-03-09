@@ -2141,6 +2141,7 @@ abstract class KvStorage extends AbstractStorage
             }
 
             if (isset($schemaMeta['index'])) {
+                //todo 优化，删除所有index影响性能，只删除必要的index
                 if (!$this->delIndex($schemaMeta, $schema, $row)) {
                     continue;
                 }
@@ -2150,6 +2151,7 @@ abstract class KvStorage extends AbstractStorage
             }
 
             if (isset($schemaMeta['partition'])) {
+                //todo 优化，删除所有index影响性能，只删除必要的index
                 if (!$this->delPartitionIndex($schemaMeta, $schema, $row)) {
                     continue;
                 }
