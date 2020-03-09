@@ -6,5 +6,5 @@
     "buffer_max_size":1,
     "name":"sw-fw-less",
     "reserve_days":1,
-    "switch":1
+    "switch":0
 }

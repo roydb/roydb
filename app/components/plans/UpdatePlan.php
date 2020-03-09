@@ -30,4 +30,13 @@ class UpdatePlan
         $this->ast = $ast;
         $this->storage = $storage;
     }
+
+    /**
+     * @return int
+     */
+    public function execute()
+    {
+        var_dump($this->ast);
+        die;
+    }
 }
