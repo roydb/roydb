@@ -71,6 +71,7 @@ class DeletePlan
 
     /**
      * @return int
+     * @throws \Exception
      */
     public function execute()
     {
@@ -80,6 +81,10 @@ class DeletePlan
         foreach ($this->schemas as $schema) {
             $table = $schema['table'];
             $schemaMeta = $this->storage->getSchemaMetaData($table);
+            if (is_null($schemaMeta)) {
+                throw new \Exception('Schema ' . $table . ' not exists');
+            }
+
             $pkList = array_column($rows, $table . '.' . $schemaMeta['pk']);
             $deleted += $this->storage->del($table, $pkList);
         }

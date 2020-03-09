@@ -66,31 +66,7 @@ class UpdatePlan
 
         foreach ($this->sets as $set) {
             $key = $set['sub_tree'][0]['base_expr'];
-            $value = $set['sub_tree'][2]['base_expr'];
-
-            $isString = false;
-            if (strpos($value, '"') === 0) {
-                $value = substr($value, 1);
-                $isString = true;
-            }
-            if (strpos($value, '"') === (strlen($value) - 1)) {
-                $value = substr($value, 0, -1);
-                $isString = true;
-            }
-
-            if (!$isString) {
-                if (ctype_digit($value)) {
-                    $value = intval($value);
-                } elseif (is_numeric($value) && (strpos($value, '.') !== false)) {
-                    $value = doubleval($value);
-                } elseif ($value === 'true') {
-                    $value = true;
-                } elseif ($value === 'false') {
-                    $value = false;
-                } elseif ($value === 'null') {
-                    $value = null;
-                }
-            }
+            $value = $set['sub_tree'][2];
 
             $updateRow[$key] = $value;
         }
@@ -135,14 +111,139 @@ class UpdatePlan
         return $plan->execute();
     }
 
-    protected function extractUpdateRow($schema)
+    /**
+     * @param $schema
+     * @return array
+     * @throws \Exception
+     */
+    protected function extractUpdateRowBySchema($schema)
     {
-        //todo
-        $rows = [];
-        return $rows;
+        $schemaMeta = $this->storage->getSchemaMetaData($schema);
+        if (is_null($schemaMeta)) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        $columns = $schemaMeta['columns'];
+        $pk = $schemaMeta['pk'];
+
+        $updateRow = [];
+
+        foreach ($columns as $i => $column) {
+            if ($column === $pk) {
+                continue;
+            }
+
+            $key = null;
+            if (isset($this->updateRow[$schema . '.' . $column['name']])) {
+                $key = $schema . '.' . $column['name'];
+            }
+            if (isset($this->updateRow[$column['name']])) {
+                $key = $column['name'];
+            }
+
+            if (is_null($key)) {
+                continue;
+            }
+
+            $columnValObj = $this->updateRow[$key];
+            $columnVal = $this->extractColumnValueObj($columnValObj);
+
+            if (!$column['allow_null']) {
+                if (is_null($columnVal)) {
+                    throw new \Exception('Column ' . $column['name'] . ' can\'t be null');
+                }
+            }
+
+            $columnVal = $this->extractColumnValue($column, $columnVal);
+
+            $updateRow[$column['name']] = $columnVal;
+        }
+
+        return $updateRow;
+    }
+
+    protected function extractColumnValueObj($columnValObj)
+    {
+        $columnVal = null;
+        if ($columnValObj['expr_type'] === 'const') {
+            $columnVal = $columnValObj['base_expr'];
+
+            $isString = false;
+            if (strpos($columnVal, '"') === 0) {
+                $columnVal = substr($columnVal, 1);
+                $isString = true;
+            }
+            if (strpos($columnVal, '"') === (strlen($columnVal) - 1)) {
+                $columnVal = substr($columnVal, 0, -1);
+                $isString = true;
+            }
+
+            if (!$isString) {
+                if (ctype_digit($columnVal)) {
+                    $columnVal = intval($columnVal);
+                } elseif (is_numeric($columnVal) && (strpos($columnVal, '.') !== false)) {
+                    $columnVal = doubleval($columnVal);
+                } elseif ($columnVal === 'true') {
+                    $columnVal = true;
+                } elseif ($columnVal === 'false') {
+                    $columnVal = false;
+                } elseif ($columnVal === 'null') {
+                    $columnVal = null;
+                }
+            }
+        } else {
+            //todo udf...
+        }
+
+        return $columnVal;
     }
 
     /**
+     * @param $column
+     * @param $columnVal
+     * @return false|int|string
+     * @throws \Exception
+     */
+    protected function extractColumnValue($column, $columnVal)
+    {
+        $columnValType = $column['type'];
+
+        if ($columnValType === 'int') {
+            if (!is_int($columnVal)) {
+                if (!ctype_digit($columnVal)) {
+                    throw new \Exception('Column ' . $column['name'] . ' must be integer');
+                } else {
+                    $columnVal = intval($columnVal);
+                }
+            }
+
+            if ($columnVal > 0) {
+                if ($columnVal >= pow(10, $column['length'])) {
+                    throw new \Exception(
+                        'Length of column ' . $column['name'] . ' can\'t be greater than ' .
+                        (string)($column['length'])
+                    );
+                }
+            } else {
+                if ($columnVal <= (-1 * pow(10, $column['length'] - 1))) {
+                    throw new \Exception(
+                        'Length of column ' . $column['name'] . ' can\'t be less than ' .
+                        (string)($column['length'])
+                    );
+                }
+            }
+        } elseif ($columnValType === 'varchar') {
+            if (!is_string($columnVal)) {
+                throw new \Exception('Column ' . $column['name'] . ' must be string');
+            }
+        }
+        //todo more types
+
+        return $columnVal;
+    }
+
+    /**
+     * @return int
      * @throws \PHPSQLParser\exceptions\UnsupportedFeatureException
      * @throws \Throwable
      */
@@ -156,14 +257,19 @@ class UpdatePlan
             $table = $schema['table'];
 
             $schemaMeta = $this->storage->getSchemaMetaData($table);
+            if (is_null($schemaMeta)) {
+                throw new \Exception('Schema ' . $table . ' not exists');
+            }
+
             $pkList = array_column($rows, $table . '.' . $schemaMeta['pk']);
 
             $affectedRows += $this->storage->update(
                 $table,
                 $pkList,
-                $this->extractUpdateRow($table)
+                $this->extractUpdateRowBySchema($table)
             );
         }
-        die;
+
+        return $affectedRows;
     }
 }

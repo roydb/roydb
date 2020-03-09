@@ -1972,30 +1972,39 @@ abstract class KvStorage extends AbstractStorage
      */
     public function del($schema, $pkList)
     {
-        //todo 优化，批量获取rows，不存在的直接过滤掉
+        $rows = $this->dataSchemaMGet($this->openBtree($schema), $schema, $pkList);
+
+        $rows = array_filter($rows);
+
+        array_walk($rows, function (&$row) {
+            $row = json_decode($row, true);
+        });
+
+        $rows = array_values($rows);
+
+        $deleted = 0;
 
         $schemaMetaData = $this->getSchemaMetaData($schema);
         if (is_null($schemaMetaData)) {
             throw new \Exception('Schema ' . $schema . ' not exists');
         }
 
-        $deleted = 0;
-
+        $pk = $schemaMetaData['pk'];
         $pIndex = $this->openBtree($schema);
-        foreach ($pkList as $pk) {
+        foreach ($rows as $row) {
             if (isset($schemaMetaData['index'])) {
-                if (!$this->delIndex($schemaMetaData, $schema, $pk)) {
+                if (!$this->delIndex($schemaMetaData, $schema, $row)) {
                     continue;
                 }
             }
 
             if (isset($schemaMetaData['partition'])) {
-                if (!$this->delPartitionIndex($schemaMetaData, $schema, $pk)) {
+                if (!$this->delPartitionIndex($schemaMetaData, $schema, $row)) {
                     continue;
                 }
             }
 
-            if (!$this->dataSchemaDel($pIndex, $schema, $pk)) {
+            if (!$this->dataSchemaDel($pIndex, $schema, $row[$pk])) {
                 continue;
             }
 
@@ -2008,17 +2017,12 @@ abstract class KvStorage extends AbstractStorage
     /**
      * @param $schemaMeta
      * @param $schema
-     * @param $pk
+     * @param $row
      * @return bool
      * @throws \Throwable
      */
-    protected function delIndex($schemaMeta, $schema, $pk)
+    protected function delIndex($schemaMeta, $schema, $row)
     {
-        $row = $this->fetchPrimaryIndexDataById($pk, $schema);
-        if (is_null($row)) {
-            return false;
-        }
-
         foreach ($schemaMeta['index'] as $indexConfig) {
             $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
             $indexPk = $indexConfig['columns'][0];
@@ -2031,7 +2035,7 @@ abstract class KvStorage extends AbstractStorage
             if (!is_null($indexData)) {
                 $indexRows = json_decode($indexData, true);
                 foreach ($indexRows as $i => $indexRow) {
-                    if ($indexRow[$schemaMeta['pk']] === $pk) {
+                    if ($indexRow[$schemaMeta['pk']] === $row[$schemaMeta['pk']]) {
                         unset($indexRows[$i]);
                     }
                 }
@@ -2060,17 +2064,12 @@ abstract class KvStorage extends AbstractStorage
     /**
      * @param $schemaMeta
      * @param $schema
-     * @param $pk
+     * @param $row
      * @return bool
      * @throws \Throwable
      */
-    protected function delPartitionIndex($schemaMeta, $schema, $pk)
+    protected function delPartitionIndex($schemaMeta, $schema, $row)
     {
-        $row = $this->fetchPrimaryIndexDataById($pk, $schema);
-        if (is_null($row)) {
-            return false;
-        }
-
         $partition = $schemaMeta['partition'];
         $partitionPk = $partition['key'];
         $partitionPkVal = $row[$partitionPk];
@@ -2107,11 +2106,61 @@ abstract class KvStorage extends AbstractStorage
      * @param $pkList
      * @param $updateRow
      * @return int
+     * @throws \Throwable
      */
     public function update($schema, $pkList, $updateRow)
     {
-        //todo
+        $rows = $this->dataSchemaMGet($this->openBtree($schema), $schema, $pkList);
 
-        return 0;
+        $rows = array_filter($rows);
+
+        array_walk($rows, function (&$row) {
+            $row = json_decode($row, true);
+        });
+
+        $rows = array_values($rows);
+
+        $affectedRows = 0;
+
+        $schemaMeta = $this->getSchemaMetaData($schema);
+        if (is_null($schemaMeta)) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        $pk = $schemaMeta['pk'];
+        $pIndex = $this->openBtree($schema);
+        foreach ($rows as $row) {
+            if (count($rowDiff = array_diff($updateRow, $row)) <= 0) {
+                continue;
+            }
+
+            $newRow = array_merge($row, $rowDiff);
+
+            if (!$this->dataSchemaSet($pIndex, $schema, $newRow[$pk], json_encode($newRow))) {
+                continue;
+            }
+
+            if (isset($schemaMeta['index'])) {
+                if (!$this->delIndex($schemaMeta, $schema, $row)) {
+                    continue;
+                }
+                if (!$this->setIndex($schemaMeta, $schema, $newRow)) {
+                    continue;
+                }
+            }
+
+            if (isset($schemaMeta['partition'])) {
+                if (!$this->delPartitionIndex($schemaMeta, $schema, $row)) {
+                    continue;
+                }
+                if (!$this->setPartitionIndex($schemaMeta, $schema, $newRow)) {
+                    continue;
+                }
+            }
+
+            ++$affectedRows;
+        }
+
+        return $affectedRows;
     }
 }
