@@ -9,6 +9,7 @@ use App\components\plans\Plan;
 use App\components\storage\roykv\Roykv;
 use Roydb\DeleteResponse;
 use Roydb\InsertResponse;
+use Roydb\UpdateResponse;
 
 /**
  */
@@ -53,11 +54,20 @@ class WriteService extends \SwFwLess\services\GrpcUnaryService implements WriteI
 
     /**
      * @param \Roydb\UpdateRequest $request
-     * @return \Roydb\UpdateResponse|void
+     * @return UpdateResponse
+     * @throws \Throwable
      */
     public function Update(\Roydb\UpdateRequest $request)
     {
-        // TODO: Implement Update() method.
+        $sql = $request->getSql();
+        $ast = Parser::fromSql($sql)->parseAst();
+        //todo 数据库权限检查
+        $plan = Plan::create($ast, new Roykv());
+        $plan = RulesBasedOptimizer::fromPlan($plan)->optimize();
+        $plan = CostBasedOptimizer::fromPlan($plan)->optimize();
+        $affectedRows = $plan->execute();
+
+        return (new UpdateResponse())->setAffectedRows($affectedRows);
     }
 
 }

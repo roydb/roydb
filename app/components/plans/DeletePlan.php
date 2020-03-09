@@ -3,8 +3,6 @@
 namespace App\components\plans;
 
 use App\components\Ast;
-use App\components\elements\condition\Condition;
-use App\components\elements\condition\ConditionTree;
 use App\components\optimizers\CostBasedOptimizer;
 use App\components\optimizers\RulesBasedOptimizer;
 use App\components\storage\AbstractStorage;
@@ -19,9 +17,6 @@ class DeletePlan
     protected $storage;
 
     protected $schemas;
-
-    /** @var Condition|ConditionTree|null  */
-    protected $condition;
 
     /**
      * DeletePlan constructor.
