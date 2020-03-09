@@ -1855,6 +1855,11 @@ abstract class KvStorage extends AbstractStorage
         foreach ($schemaMeta['index'] as $indexConfig) {
             $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
             $indexPk = $indexConfig['columns'][0];
+
+            if (!isset($row[$indexPk])) {
+                continue;
+            }
+
             //todo (atomic、batch put)
             $indexData = $this->dataSchemaGetById(
                 $indexBtree,
@@ -1902,6 +1907,11 @@ abstract class KvStorage extends AbstractStorage
 
         $partition = $schemaMeta['partition'];
         $partitionPk = $partition['key'];
+
+        if (!isset($row[$partitionPk])) {
+            return true;
+        }
+
         $partitionPkVal = $row[$partitionPk];
 
         $targetPartitionIndex = null;
@@ -2026,6 +2036,11 @@ abstract class KvStorage extends AbstractStorage
         foreach ($schemaMeta['index'] as $indexConfig) {
             $indexBtree = $this->openBtree($schema . '.' . $indexConfig['name']);
             $indexPk = $indexConfig['columns'][0];
+
+            if (!isset($row[$indexPk])) {
+                continue;
+            }
+
             //todo atomic、batch put
             $indexData = $this->dataSchemaGetById(
                 $indexBtree,
@@ -2072,6 +2087,11 @@ abstract class KvStorage extends AbstractStorage
     {
         $partition = $schemaMeta['partition'];
         $partitionPk = $partition['key'];
+
+        if (!isset($row[$partitionPk])) {
+            return true;
+        }
+
         $partitionPkVal = $row[$partitionPk];
 
         $targetPartitionIndex = null;
@@ -2130,8 +2150,13 @@ abstract class KvStorage extends AbstractStorage
         $pk = $schemaMeta['pk'];
         $pIndex = $this->openBtree($schema);
         foreach ($rows as $row) {
-            if (count($rowDiff = array_diff($updateRow, $row)) <= 0) {
-                continue;
+            $rowDiff = [];
+            $rowDiffOrig = [];
+            foreach ($updateRow as $key => $value) {
+                if ($row[$key] !== $value) {
+                    $rowDiff[$key] = $value;
+                    $rowDiffOrig[$key] = $value;
+                }
             }
 
             $newRow = array_merge($row, $rowDiff);
@@ -2141,21 +2166,19 @@ abstract class KvStorage extends AbstractStorage
             }
 
             if (isset($schemaMeta['index'])) {
-                //todo 优化，删除所有index影响性能，只删除必要的index
-                if (!$this->delIndex($schemaMeta, $schema, $row)) {
+                if (!$this->delIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiffOrig))) {
                     continue;
                 }
-                if (!$this->setIndex($schemaMeta, $schema, $newRow)) {
+                if (!$this->setIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiff))) {
                     continue;
                 }
             }
 
             if (isset($schemaMeta['partition'])) {
-                //todo 优化，删除所有index影响性能，只删除必要的index
-                if (!$this->delPartitionIndex($schemaMeta, $schema, $row)) {
+                if (!$this->delPartitionIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiffOrig))) {
                     continue;
                 }
-                if (!$this->setPartitionIndex($schemaMeta, $schema, $newRow)) {
+                if (!$this->setPartitionIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiff))) {
                     continue;
                 }
             }
