@@ -2175,10 +2175,10 @@ abstract class KvStorage extends AbstractStorage
             }
 
             if (isset($schemaMeta['partition'])) {
-                if (!$this->delPartitionIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiffOrig))) {
+                if (!$this->delPartitionIndex($schemaMeta, $schema, $row)) {
                     continue;
                 }
-                if (!$this->setPartitionIndex($schemaMeta, $schema, array_merge([$pk => $row[$pk]], $rowDiff))) {
+                if (!$this->setPartitionIndex($schemaMeta, $schema, $newRow)) {
                     continue;
                 }
             }
