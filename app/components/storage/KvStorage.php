@@ -2178,6 +2178,7 @@ abstract class KvStorage extends AbstractStorage
                 if (!$this->delPartitionIndex($schemaMeta, $schema, $row)) {
                     continue;
                 }
+                //todo optimization only set updated column partition index
                 if (!$this->setPartitionIndex($schemaMeta, $schema, $newRow)) {
                     continue;
                 }
