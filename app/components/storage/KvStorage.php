@@ -847,6 +847,8 @@ abstract class KvStorage extends AbstractStorage
 
                                 foreach ($formattedResult as $key => $data) {
                                     $itStart = $key;
+
+                                    //todo bugfix format field using schema type
                                     if (!$operatorHandler->calculateOperatorExpr(
                                         $conditionOperator,
                                         ...[$key, $conditionValue]
@@ -999,6 +1001,7 @@ abstract class KvStorage extends AbstractStorage
                         foreach ($formattedResult as $key => $data) {
                             $itStart = $key;
 
+                            //todo bugfix format field using schema type
                             if (!$usingPrimaryIndex) {
                                 if (!$operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
@@ -1209,6 +1212,7 @@ abstract class KvStorage extends AbstractStorage
                                 foreach ($formattedResult as $key => $data) {
                                     $itStart = $key;
 
+                                    //todo bugfix format field using schema type
                                     if (!$operatorHandler->calculateOperatorExpr(
                                         'between',
                                         ...[$key, $operandValue2, $operandValue3]
@@ -1354,6 +1358,7 @@ abstract class KvStorage extends AbstractStorage
                         foreach ($formattedResult as $key => $data) {
                             $itStart = $key;
 
+                            //todo bugfix format field using schema type
                             if ($usingPrimaryIndex) {
                                 $arrData = json_decode($data, true);
                                 if (!$operatorHandler->calculateOperatorExpr(

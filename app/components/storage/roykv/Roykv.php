@@ -101,8 +101,8 @@ class Roykv extends KvStorage
     protected function dataSchemaScan($btree, $indexName, &$startKey, &$endKey, $limit, $callback, &$skipFirst = false)
     {
         while (($scanReply = $btree->Scan(
-            (new ScanRequest())->setStartKey('data.schema.' . $indexName . '::' . $startKey)
-                ->setEndKey(($endKey === '') ? '' : ('data.schema.' . $indexName . '::' . $endKey))
+            (new ScanRequest())->setStartKey('data.schema.' . $indexName . '::' . ((string)$startKey))
+                ->setEndKey((((string)$endKey) === '') ? '' : ('data.schema.' . $indexName . '::' . ((string)$endKey)))
                 ->setKeyPrefix('data.schema.' . $indexName . '::')
                 ->setLimit($limit)
         ))) {
