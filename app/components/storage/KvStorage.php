@@ -72,6 +72,62 @@ abstract class KvStorage extends AbstractStorage
 
     /**
      * @param $schema
+     * @param $field
+     * @param $value
+     * @return int
+     * @throws \Throwable
+     */
+    protected function formatFieldValue($schema, $field, $value)
+    {
+        $schemaMeta = $this->getSchemaMetaData($schema);
+        if (!$schemaMeta) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
+
+        foreach ($schemaMeta['columns'] as $column) {
+            if ($column['name'] === $field) {
+                $columnValType = $column['type'];
+
+                if ($columnValType === 'int') {
+                    if (!is_int($value)) {
+                        if (!ctype_digit($value)) {
+                            throw new \Exception('Column ' . $column['name'] . ' must be integer');
+                        } else {
+                            $value = intval($value);
+                        }
+                    }
+
+                    if ($value > 0) {
+                        if ($value >= pow(10, $column['length'])) {
+                            throw new \Exception(
+                                'Length of column ' . $column['name'] . ' can\'t be greater than ' .
+                                (string)($column['length'])
+                            );
+                        }
+                    } else {
+                        if ($value <= (-1 * pow(10, $column['length'] - 1))) {
+                            throw new \Exception(
+                                'Length of column ' . $column['name'] . ' can\'t be less than ' .
+                                (string)($column['length'])
+                            );
+                        }
+                    }
+                } elseif ($columnValType === 'varchar') {
+                    if (!is_string($value)) {
+                        throw new \Exception('Column ' . $column['name'] . ' must be string');
+                    }
+                }
+                //todo more types
+
+                break;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param $schema
      * @return mixed
      * @throws \Throwable
      */
@@ -841,17 +897,16 @@ abstract class KvStorage extends AbstractStorage
                             function ($formattedResult, $resultCount) use (
                                 &$indexData, $operatorHandler, $conditionOperator, $conditionValue,
                                 $usingPrimaryIndex, $rootCondition, $schema, $offsetLimitCount, &$skipFirst,
-                                &$itStart, $itLimit, $usedColumns
+                                &$itStart, $itLimit, $usedColumns, $field
                             ) {
                                 $subIndexData = [];
 
                                 foreach ($formattedResult as $key => $data) {
                                     $itStart = $key;
 
-                                    //todo bugfix format field using schema type
                                     if (!$operatorHandler->calculateOperatorExpr(
                                         $conditionOperator,
-                                        ...[$key, $conditionValue]
+                                        ...[$this->formatFieldValue($schema, $field, $key), $conditionValue]
                                     )) {
                                         continue;
                                     }
@@ -1001,11 +1056,10 @@ abstract class KvStorage extends AbstractStorage
                         foreach ($formattedResult as $key => $data) {
                             $itStart = $key;
 
-                            //todo bugfix format field using schema type
                             if (!$usingPrimaryIndex) {
                                 if (!$operatorHandler->calculateOperatorExpr(
                                     $conditionOperator,
-                                    ...[$key, $conditionValue]
+                                    ...[$this->formatFieldValue($schema, $field, $key), $conditionValue]
                                 )) {
                                     continue;
                                 }
@@ -1205,17 +1259,16 @@ abstract class KvStorage extends AbstractStorage
                             function ($formattedResult, $resultCount) use (
                                 &$indexData, $operatorHandler, $operandValue2, $operandValue3,
                                 $usingPrimaryIndex, $schema, $rootCondition, $offsetLimitCount,
-                                $itLimit, &$skipFirst, &$itStart, $usedColumns
+                                $itLimit, &$skipFirst, &$itStart, $usedColumns, $operandValue1
                             ) {
                                 $subIndexData = [];
 
                                 foreach ($formattedResult as $key => $data) {
                                     $itStart = $key;
 
-                                    //todo bugfix format field using schema type
                                     if (!$operatorHandler->calculateOperatorExpr(
                                         'between',
-                                        ...[$key, $operandValue2, $operandValue3]
+                                        ...[$this->formatFieldValue($schema, $operandValue1, $key), $operandValue2, $operandValue3]
                                     )) {
                                         continue;
                                     }
@@ -1358,7 +1411,6 @@ abstract class KvStorage extends AbstractStorage
                         foreach ($formattedResult as $key => $data) {
                             $itStart = $key;
 
-                            //todo bugfix format field using schema type
                             if ($usingPrimaryIndex) {
                                 $arrData = json_decode($data, true);
                                 if (!$operatorHandler->calculateOperatorExpr(
@@ -1370,7 +1422,7 @@ abstract class KvStorage extends AbstractStorage
                             } else {
                                 if (!$operatorHandler->calculateOperatorExpr(
                                     'between',
-                                    ...[$key, $operandValue2, $operandValue3]
+                                    ...[$this->formatFieldValue($schema, $operandValue1, $key), $operandValue2, $operandValue3]
                                 )) {
                                     continue;
                                 }
