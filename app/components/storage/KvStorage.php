@@ -2115,27 +2115,27 @@ abstract class KvStorage extends AbstractStorage
             );
             if (!is_null($indexData)) {
                 $indexRows = json_decode($indexData, true);
+                $deleted = false;
                 foreach ($indexRows as $i => $indexRow) {
                     if ($indexRow[$schemaMeta['pk']] === $row[$schemaMeta['pk']]) {
                         unset($indexRows[$i]);
+                        $deleted = true;
                     }
                 }
-                if (!$this->dataSchemaSet(
-                    $indexBtree,
-                    $schema . '.' . $indexConfig['name'],
-                    $row[$indexPk],
-                    json_encode($indexRows)
-                )) {
+                if ($deleted) {
+                    if (!$this->dataSchemaSet(
+                        $indexBtree,
+                        $schema . '.' . $indexConfig['name'],
+                        $row[$indexPk],
+                        json_encode($indexRows)
+                    )) {
+                        return false;
+                    }
+                } else {
                     return false;
                 }
             } else {
-                if (!$this->dataSchemaDel(
-                    $indexBtree,
-                    $schema . '.' . $indexConfig['name'],
-                    $row[$indexPk]
-                )) {
-                    return false;
-                }
+                return false;
             }
         }
 
