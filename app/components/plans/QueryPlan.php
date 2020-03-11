@@ -37,13 +37,13 @@ class QueryPlan
     ];
 
     /** @var Ast */
-    protected $ast;
+    protected ?Ast $ast;
 
     /** @var AbstractStorage */
-    protected $storage;
+    protected ?AbstractStorage $storage;
 
     /** @var Column[] */
-    protected $columns = [];
+    protected array $columns = [];
 
     protected $schemas;
 
