@@ -11,9 +11,9 @@ use SwFwLess\components\swoole\Scheduler;
 
 abstract class KvStorage extends AbstractStorage
 {
-    protected $filterConditionCache = [];
+    protected array $filterConditionCache = [];
 
-    protected $schemaMetaCache = [];
+    protected array $schemaMetaCache = [];
 
     abstract protected function openBtree($name, $new = false);
 
