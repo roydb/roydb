@@ -1874,15 +1874,24 @@ abstract class KvStorage extends AbstractStorage
      */
     public function add($schema, $rows)
     {
-        //todo 已经存在的数据去重，根据pk
-
         $affectedRows = 0;
 
         $schemaMeta = $this->getSchemaMetaData($schema);
+        if (!$schemaMeta) {
+            throw new \Exception('Schema ' . $schema . ' not exists');
+        }
 
         $pk = $schemaMeta['pk'];
+
+        $existedRows = $this->fetchAllColumnsByIndexData($rows, $schema);
+        $existedRowsPkList = array_column($existedRows, $pk);
+
         $pIndex = $this->openBtree($schema);
         foreach ($rows as $row) {
+            if (in_array($row[$pk], $existedRowsPkList)) {
+                continue;
+            }
+
             if (!$this->dataSchemaSet($pIndex, $schema, $row[$pk], json_encode($row))) {
                 continue;
             }
