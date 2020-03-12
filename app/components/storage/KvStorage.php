@@ -254,11 +254,15 @@ abstract class KvStorage extends AbstractStorage
                         }
                     } else {
                         if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
+                            $subCostList = [];
                             foreach ($subCondition as $subSubCondition) {
                                 $cost = $this->countPartitionByCondition($schema, $subSubCondition);
                                 if ($cost > 0) {
-                                    $costList[] = $cost;
+                                    $subCostList[] = $cost;
                                 }
+                            }
+                            if (count($subCostList) > 0) {
+                                $costList[] = array_sum($subCostList);
                             }
                         } else {
                             $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
@@ -1594,6 +1598,7 @@ abstract class KvStorage extends AbstractStorage
 
         if ($logicOperator === 'and') {
             if (count($subConditions) === 2) {
+                //rewrite range conditions to between condition
                 $subCondition1Col = null;
                 $subCondition1Operator = null;
                 $subCondition1Value = null;
@@ -1685,28 +1690,27 @@ abstract class KvStorage extends AbstractStorage
             foreach ($subConditions as $subCondition) {
                 if ($subCondition instanceof Condition) {
                     $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
-                    if ($cost > 0) {
-                        $costList[] = $cost;
-                    }
+                    $costList[] = $cost;
                 } else {
                     if ($isNot && ($subCondition->getLogicOperator() === 'not')) {
+                        $subCostList = [];
                         foreach ($subCondition as $subSubCondition) {
                             $cost = $this->countPartitionByCondition($schema, $subSubCondition);
-                            if ($cost > 0) {
-                                $costList[] = $cost;
-                            }
+                            $subCostList[] = $cost;
+                        }
+                        if (count($subCostList) > 0) {
+                            $costList[] = array_sum($subCostList);
+                        } else {
+                            $costList[] = 0;
                         }
                     } else {
-                        foreach ($subCondition as $subSubCondition) {
-                            $cost = $this->countPartitionByCondition($schema, $subSubCondition, $isNot);
-                            if ($cost > 0) {
-                                $costList[] = $cost;
-                            }
-                        }
+                        $cost = $this->countPartitionByCondition($schema, $subCondition, $isNot);
+                        $costList[] = $cost;
                     }
                 }
             }
 
+            //todo select condition by partition and index cost
             $minCost = count($costList) > 0 ? min($costList) : 0;
             if ($minCost > 0) {
                 $minCostConditionIndex = array_search($minCost, $costList);
