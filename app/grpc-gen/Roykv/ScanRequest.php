@@ -18,21 +18,25 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
      */
     private $startKey = '';
     /**
-     * Generated from protobuf field <code>string endKey = 2;</code>
+     * Generated from protobuf field <code>string startKeyType = 2;</code>
+     */
+    private $startKeyType = '';
+    /**
+     * Generated from protobuf field <code>string endKey = 3;</code>
      */
     private $endKey = '';
     /**
-     * Generated from protobuf field <code>string keyPrefix = 3;</code>
+     * Generated from protobuf field <code>string endKeyType = 4;</code>
+     */
+    private $endKeyType = '';
+    /**
+     * Generated from protobuf field <code>string keyPrefix = 5;</code>
      */
     private $keyPrefix = '';
     /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
+     * Generated from protobuf field <code>uint64 limit = 6;</code>
      */
     private $limit = 0;
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
-     */
-    private $txnId = 0;
 
     /**
      * Constructor.
@@ -41,10 +45,11 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
      *     Optional. Data for populating the Message object.
      *
      *     @type string $startKey
+     *     @type string $startKeyType
      *     @type string $endKey
+     *     @type string $endKeyType
      *     @type string $keyPrefix
      *     @type int|string $limit
-     *     @type int|string $txnId
      * }
      */
     public function __construct($data = NULL) {
@@ -75,7 +80,29 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>string endKey = 2;</code>
+     * Generated from protobuf field <code>string startKeyType = 2;</code>
+     * @return string
+     */
+    public function getStartKeyType()
+    {
+        return $this->startKeyType;
+    }
+
+    /**
+     * Generated from protobuf field <code>string startKeyType = 2;</code>
+     * @param string $var
+     * @return $this
+     */
+    public function setStartKeyType($var)
+    {
+        GPBUtil::checkString($var, True);
+        $this->startKeyType = $var;
+
+        return $this;
+    }
+
+    /**
+     * Generated from protobuf field <code>string endKey = 3;</code>
      * @return string
      */
     public function getEndKey()
@@ -84,7 +111,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>string endKey = 2;</code>
+     * Generated from protobuf field <code>string endKey = 3;</code>
      * @param string $var
      * @return $this
      */
@@ -97,7 +124,29 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>string keyPrefix = 3;</code>
+     * Generated from protobuf field <code>string endKeyType = 4;</code>
+     * @return string
+     */
+    public function getEndKeyType()
+    {
+        return $this->endKeyType;
+    }
+
+    /**
+     * Generated from protobuf field <code>string endKeyType = 4;</code>
+     * @param string $var
+     * @return $this
+     */
+    public function setEndKeyType($var)
+    {
+        GPBUtil::checkString($var, True);
+        $this->endKeyType = $var;
+
+        return $this;
+    }
+
+    /**
+     * Generated from protobuf field <code>string keyPrefix = 5;</code>
      * @return string
      */
     public function getKeyPrefix()
@@ -106,7 +155,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>string keyPrefix = 3;</code>
+     * Generated from protobuf field <code>string keyPrefix = 5;</code>
      * @param string $var
      * @return $this
      */
@@ -119,7 +168,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
+     * Generated from protobuf field <code>uint64 limit = 6;</code>
      * @return int|string
      */
     public function getLimit()
@@ -128,7 +177,7 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     }
 
     /**
-     * Generated from protobuf field <code>uint64 limit = 4;</code>
+     * Generated from protobuf field <code>uint64 limit = 6;</code>
      * @param int|string $var
      * @return $this
      */
@@ -136,28 +185,6 @@ class ScanRequest extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkUint64($var);
         $this->limit = $var;
-
-        return $this;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
-     * @return int|string
-     */
-    public function getTxnId()
-    {
-        return $this->txnId;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 5;</code>
-     * @param int|string $var
-     * @return $this
-     */
-    public function setTxnId($var)
-    {
-        GPBUtil::checkUint64($var);
-        $this->txnId = $var;
 
         return $this;
     }

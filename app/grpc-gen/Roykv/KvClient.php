@@ -129,34 +129,6 @@ class KvClient extends \Grpc\BaseStub {
     }
 
     /**
-     * @param \Roykv\AtomicOpRequest $argument input argument
-     * @param array $metadata metadata
-     * @param array $options call options
-     * @return \Roykv\AtomicOpReply[]|\Roykv\AtomicOpReply|\Grpc\StringifyAble[]
-     */
-    public function AtomicOp(\Roykv\AtomicOpRequest $argument,
-      $metadata = [], $options = []) {
-        return $this->_simpleRequest('/roykv.Kv/AtomicOp',
-        $argument,
-        ['\Roykv\AtomicOpReply', 'decode'],
-        $metadata, $options);
-    }
-
-    /**
-     * @param \Roykv\BatchAtomicOpRequest $argument input argument
-     * @param array $metadata metadata
-     * @param array $options call options
-     * @return \Roykv\BatchAtomicOpReply[]|\Roykv\BatchAtomicOpReply|\Grpc\StringifyAble[]
-     */
-    public function BatchAtomicOp(\Roykv\BatchAtomicOpRequest $argument,
-      $metadata = [], $options = []) {
-        return $this->_simpleRequest('/roykv.Kv/BatchAtomicOp',
-        $argument,
-        ['\Roykv\BatchAtomicOpReply', 'decode'],
-        $metadata, $options);
-    }
-
-    /**
      * @param \Roykv\DelRequest $argument input argument
      * @param array $metadata metadata
      * @param array $options call options

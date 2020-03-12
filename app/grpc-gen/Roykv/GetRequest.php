@@ -17,10 +17,6 @@ class GetRequest extends \Google\Protobuf\Internal\Message
      * Generated from protobuf field <code>string key = 1;</code>
      */
     private $key = '';
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 2;</code>
-     */
-    private $txnId = 0;
 
     /**
      * Constructor.
@@ -29,7 +25,6 @@ class GetRequest extends \Google\Protobuf\Internal\Message
      *     Optional. Data for populating the Message object.
      *
      *     @type string $key
-     *     @type int|string $txnId
      * }
      */
     public function __construct($data = NULL) {
@@ -55,28 +50,6 @@ class GetRequest extends \Google\Protobuf\Internal\Message
     {
         GPBUtil::checkString($var, True);
         $this->key = $var;
-
-        return $this;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 2;</code>
-     * @return int|string
-     */
-    public function getTxnId()
-    {
-        return $this->txnId;
-    }
-
-    /**
-     * Generated from protobuf field <code>uint64 txnId = 2;</code>
-     * @param int|string $var
-     * @return $this
-     */
-    public function setTxnId($var)
-    {
-        GPBUtil::checkUint64($var);
-        $this->txnId = $var;
 
         return $this;
     }
