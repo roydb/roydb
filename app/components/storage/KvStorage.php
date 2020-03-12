@@ -914,7 +914,11 @@ abstract class KvStorage extends AbstractStorage
                                         $arrData = json_decode($data, true);
                                         $subIndexData[] = $arrData;
                                     } else {
-                                        $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                        $indexRows = json_decode($data, true);
+                                        array_walk($indexRows, function (&$indexRow) use ($schema, $field, $key) {
+                                            $indexRow[$field] = $this->formatFieldValue($schema, $field, $key);
+                                        });
+                                        $subIndexData = array_merge($subIndexData, $indexRows);
                                     }
                                 }
 
@@ -1076,7 +1080,11 @@ abstract class KvStorage extends AbstractStorage
                             if ($usingPrimaryIndex) {
                                 $subIndexData[] = json_decode($data, true);
                             } else {
-                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                $indexRows = json_decode($data, true);
+                                array_walk($indexRows, function (&$indexRow) use ($schema, $field, $key) {
+                                   $indexRow[$field] = $this->formatFieldValue($schema, $field, $key);
+                                });
+                                $subIndexData = array_merge($subIndexData, $indexRows);
                             }
                         }
 
@@ -1276,7 +1284,11 @@ abstract class KvStorage extends AbstractStorage
                                     if ($usingPrimaryIndex) {
                                         $subIndexData[] = json_decode($data, true);
                                     } else {
-                                        $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                        $indexRows = json_decode($data, true);
+                                        array_walk($indexRows, function (&$indexRow) use ($schema, $operandValue1, $key) {
+                                            $indexRow[$operandValue1] = $this->formatFieldValue($schema, $operandValue1, $key);
+                                        });
+                                        $subIndexData = array_merge($subIndexData, $indexRows);
                                     }
                                 }
 
@@ -1431,7 +1443,11 @@ abstract class KvStorage extends AbstractStorage
                             if ($usingPrimaryIndex) {
                                 $subIndexData[] = json_decode($data, true);
                             } else {
-                                $subIndexData = array_merge($subIndexData, json_decode($data, true));
+                                $indexRows = json_decode($data, true);
+                                array_walk($indexRows, function (&$indexRow) use ($schema, $operandValue1, $key) {
+                                    $indexRow[$operandValue1] = $this->formatFieldValue($schema, $operandValue1, $key);
+                                });
+                                $subIndexData = array_merge($subIndexData, $indexRows);
                             }
                         }
 
