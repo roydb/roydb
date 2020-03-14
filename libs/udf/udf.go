@@ -7,11 +7,11 @@ import (
 
 //export ArraySum
 func ArraySum(numbers *C.double, size C.int) C.double {
-	var sum float64
-	sum = 0
-
 	p := uintptr(unsafe.Pointer(numbers))
     arrLen := int(size)
+
+    var sum float64
+    sum = 0
 
 	for i := 0; i < arrLen; i++ {
 		number := *(*float64)(unsafe.Pointer(p))
