@@ -1,7 +1,6 @@
 <?php
 
-$udf = FFI::cdef("double ArraySum(double numbers[], int size);", __DIR__ . '/libudf.so'
-);
+$udf = FFI::cdef("double ArraySum(double numbers[], int size);", __DIR__ . '/libcudf.so');
 
 $arr = FFI::new('double[100000000]');
 

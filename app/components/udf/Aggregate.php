@@ -4,6 +4,7 @@ namespace App\components\udf;
 
 use App\components\elements\Aggregation;
 use App\components\elements\Column;
+use SwFwLess\facades\File;
 
 class Aggregate
 {
@@ -87,6 +88,44 @@ class Aggregate
             } else {
                 return min(array_column($resultSet, $columnValue));
             }
+        }
+    }
+
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
+    public static function sum($parameters, $row, $resultSet)
+    {
+        /** @var Column $column */
+        $column = $parameters[0];
+
+        $columnType = $column->getType();
+        $columnValue = $column->getValue();
+        if ($columnType === 'const') {
+            throw new \Exception('Unsupported const param passed to sum function');
+        } else {
+            if ($columnValue === '*') {
+                throw new \Exception('Unsupported column named as \'*\' passed to sum function');
+            }
+
+            if ($row instanceof Aggregation) {
+                $numbers = array_column($row->getRows(), $columnValue);
+            } else {
+                $numbers = array_column($resultSet, $columnValue);
+            }
+
+            $numbersCount = count($numbers);
+            $udf = \FFI::cdef("double ArraySum(double numbers[], int size);", File::basePath() . 'libs/udf/libcudf.so');
+            $arr = \FFI::new('double[' . ((string)$numbersCount) . ']');
+            for ($i = 0; $i < $numbersCount; ++$i) {
+                $arr[$i] = $numbers[$i];
+            }
+
+            return $udf->ArraySum($arr, $numbersCount);
         }
     }
 

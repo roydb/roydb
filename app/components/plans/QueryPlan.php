@@ -34,6 +34,7 @@ class QueryPlan
         'max' => [Aggregate::class, 'max'],
         'min' => [Aggregate::class, 'min'],
         'first' => [Aggregate::class, 'first'],
+        'sum' => [Aggregate::class, 'sum'],
     ];
 
     /** @var Ast */

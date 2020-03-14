@@ -2,6 +2,7 @@ package main
 
 import (
 	"C"
+	_ "runtime/cgo"
 	"unsafe"
 )
 
