@@ -7,3 +7,7 @@ double ArraySum(double numbers[], int size) {
     }
     return sum;
 }
+
+double ArrayAvg(double numbers[], int size) {
+    return ArraySum(numbers, size) / size;
+}

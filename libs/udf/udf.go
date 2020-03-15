@@ -23,4 +23,9 @@ func ArraySum(numbers *C.double, size C.int) C.double {
 	return C.double(sum)
 }
 
+//export ArrayAvg
+func ArrayAvg(numbers *C.double, size C.int) C.double {
+    return C.double(float64(ArraySum(numbers, size)) / float64(size))
+}
+
 func main() {}

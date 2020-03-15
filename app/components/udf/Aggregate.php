@@ -136,6 +136,44 @@ class Aggregate
      * @return mixed
      * @throws \Exception
      */
+    public static function avg($parameters, $row, $resultSet)
+    {
+        /** @var Column $column */
+        $column = $parameters[0];
+
+        $columnType = $column->getType();
+        $columnValue = $column->getValue();
+        if ($columnType === 'const') {
+            throw new \Exception('Unsupported const param passed to avg function');
+        } else {
+            if ($columnValue === '*') {
+                throw new \Exception('Unsupported column named as \'*\' passed to avg function');
+            }
+
+            if ($row instanceof Aggregation) {
+                $numbers = array_column($row->getRows(), $columnValue);
+            } else {
+                $numbers = array_column($resultSet, $columnValue);
+            }
+
+            $numbersCount = count($numbers);
+            $udf = \FFI::cdef("double ArrayAvg(double numbers[], int size);", File::basePath() . 'libs/udf/libcudf.so');
+            $arr = \FFI::new('double[' . ((string)$numbersCount) . ']');
+            for ($i = 0; $i < $numbersCount; ++$i) {
+                $arr[$i] = $numbers[$i];
+            }
+
+            return $udf->ArrayAvg($arr, $numbersCount);
+        }
+    }
+
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
     public static function first($parameters, $row, $resultSet)
     {
         /** @var Column $column */

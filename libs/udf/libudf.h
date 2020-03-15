@@ -71,6 +71,8 @@ extern "C" {
 
 extern double ArraySum(double* p0, int p1);
 
+extern double ArrayAvg(double* p0, int p1);
+
 #ifdef __cplusplus
 }
 #endif
