@@ -36,6 +36,12 @@ class QueryPlan
         'first' => [Aggregate::class, 'first'],
         'sum' => [Aggregate::class, 'sum'],
         'avg' => [Aggregate::class, 'avg'],
+
+        //todo
+//        'add' => [Aggregate::class, 'add'],
+//        'sub' => [Aggregate::class, 'sub'],
+//        'mul' => [Aggregate::class, 'mul'],
+//        'div' => [Aggregate::class, 'div'],
     ];
 
     /** @var Ast */

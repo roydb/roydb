@@ -31,3 +31,7 @@ double ArrayMax(double numbers[], int size) {
     }
     return max;
 }
+
+double Add(double number1, double number2) {
+    return number1 + number2;
+}

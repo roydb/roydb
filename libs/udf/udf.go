@@ -66,4 +66,9 @@ func ArrayMax(numbers *C.double, size C.int) C.double {
 	return C.double(max)
 }
 
+//export Add
+func Add(number1 C.double, number2 C.double) C.double {
+    return number1 + number2
+}
+
 func main() {}

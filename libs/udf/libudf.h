@@ -77,6 +77,8 @@ extern double ArrayMin(double* p0, int p1);
 
 extern double ArrayMax(double* p0, int p1);
 
+extern double Add(double p0, double p1);
+
 #ifdef __cplusplus
 }
 #endif

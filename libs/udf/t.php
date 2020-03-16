@@ -6,6 +6,7 @@ double ArraySum(double numbers[], int size);
 double ArrayAvg(double numbers[], int size);
 double ArrayMin(double numbers[], int size);
 double ArrayMax(double numbers[], int size);
+double Add(double number1, double number2);
 EOF, __DIR__ . '/libcudf.so'
 );
 
@@ -15,6 +16,7 @@ double ArraySum(double numbers[], int size);
 double ArrayAvg(double numbers[], int size);
 double ArrayMin(double numbers[], int size);
 double ArrayMax(double numbers[], int size);
+double Add(double number1, double number2);
 EOF, __DIR__ . '/libudf.so'
 );
 
@@ -90,4 +92,34 @@ echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
 $start = microtime(true);
 echo 'Calculate max of 10 billion doubles using PHP', PHP_EOL;
 var_dump(max($arr));
+echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
+
+//Test Add
+$testArr = $arr;
+$start = microtime(true);
+echo 'Add values of 10 billion doubles with constant using C', PHP_EOL;
+foreach ($testArr as $i => $value) {
+    $testArr[$i] = $cUdf->Add($value, $i);
+}
+echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
+
+$testArr = $arr;
+$start = microtime(true);
+echo 'Add values of 10 billion doubles with constant using Go', PHP_EOL;
+echo 'Usage time: Inf', PHP_EOL;
+
+$testArr = $arr;
+$start = microtime(true);
+echo 'Add values of 10 billion doubles with constant using PHP', PHP_EOL;
+foreach ($testArr as $i => $value) {
+    $testArr[$i] = $value + $i;
+}
+echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
+
+$testArr = $arr;
+$start = microtime(true);
+echo 'Add values of 10 billion doubles with constant using PHP Array', PHP_EOL;
+foreach ($testArr as $i => $value) {
+    $testArr[$i] = array_sum([$value, $i]);
+}
 echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
