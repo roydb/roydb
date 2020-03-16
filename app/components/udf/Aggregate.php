@@ -222,4 +222,36 @@ class Aggregate
             }
         }
     }
+
+    /**
+     * @param $parameters
+     * @param $row
+     * @param $resultSet
+     * @return mixed
+     * @throws \Exception
+     */
+    public static function last($parameters, $row, $resultSet)
+    {
+        /** @var Column $column */
+        $column = $parameters[0];
+
+        $columnType = $column->getType();
+        $columnValue = $column->getValue();
+        if ($columnType === 'const') {
+            throw new \Exception('Unsupported const param passed to last function');
+        } else {
+            if ($columnValue === '*') {
+                if ($row instanceof Aggregation) {
+                    return $row->getLastRow();
+                } else {
+                    return end($resultSet);
+                }
+            }
+            if ($row instanceof Aggregation) {
+                return $row->getLastRow()[$columnValue];
+            } else {
+                return end($resultSet)[$columnValue];
+            }
+        }
+    }
 }

@@ -4,11 +4,11 @@ namespace App\components\elements;
 
 class Aggregation
 {
-    protected $dimension = [];
+    protected array $dimension = [];
 
-    protected $rows = [];
+    protected array $rows = [];
 
-    protected $aggregatedRow = [];
+    protected array $aggregatedRow = [];
 
     /**
      * @param array $dimension
@@ -93,6 +93,15 @@ class Aggregation
     public function getFirstRow()
     {
         return $this->rows[0];
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getLastRow()
+    {
+        $rows = $this->rows;
+        return end($rows);
     }
 
     /**
