@@ -26,22 +26,24 @@ class QueryPlan
     ];
 
     const UDF = [
+        //Math
         'sin' => [Math::class, 'sin'],
         'cos' => [Math::class, 'cos'],
         'sqrt' => [Math::class, 'sqrt'],
         'pow' => [Math::class, 'pow'],
+        //todo
+//        'add' => [Math::class, 'add'],
+//        'sub' => [Math::class, 'sub'],
+//        'mul' => [Math::class, 'mul'],
+//        'div' => [Math::class, 'div'],
+
+        //Agg
         'count' => [Aggregate::class, 'count'],
         'max' => [Aggregate::class, 'max'],
         'min' => [Aggregate::class, 'min'],
         'first' => [Aggregate::class, 'first'],
         'sum' => [Aggregate::class, 'sum'],
         'avg' => [Aggregate::class, 'avg'],
-
-        //todo
-//        'add' => [Aggregate::class, 'add'],
-//        'sub' => [Aggregate::class, 'sub'],
-//        'mul' => [Aggregate::class, 'mul'],
-//        'div' => [Aggregate::class, 'div'],
     ];
 
     /** @var Ast */

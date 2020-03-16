@@ -55,9 +55,21 @@ class Aggregate
             }
 
             if ($row instanceof Aggregation) {
-                return max(array_column($row->getRows(), $columnValue));
+                $values = array_column($row->getRows(), $columnValue);
             } else {
-                return max(array_column($resultSet, $columnValue));
+                $values = array_column($resultSet, $columnValue);
+            }
+
+            if (is_float($values[0]) || is_double($values[0]) || is_integer($values[0])) {
+                $numbersCount = count($values);
+                $udf = \FFI::cdef("double ArrayMax(double numbers[], int size);", File::basePath() . 'libs/udf/libcudf.so');
+                $arr = \FFI::new('double[' . ((string)$numbersCount) . ']');
+                for ($i = 0; $i < $numbersCount; ++$i) {
+                    $arr[$i] = $values[$i];
+                }
+                return $udf->ArrayMax($arr, $numbersCount);
+            } else {
+                return max($values);
             }
         }
     }
