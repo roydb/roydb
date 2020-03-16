@@ -13,6 +13,8 @@ $goUdf = FFI::cdef(
     <<<EOF
 double ArraySum(double numbers[], int size);
 double ArrayAvg(double numbers[], int size);
+double ArrayMin(double numbers[], int size);
+double ArrayMax(double numbers[], int size);
 EOF, __DIR__ . '/libudf.so'
 );
 
@@ -65,6 +67,11 @@ var_dump($cUdf->ArrayMin($cArr, 100000000));
 echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
 
 $start = microtime(true);
+echo 'Calculate min of 10 billion doubles using Go', PHP_EOL;
+var_dump($goUdf->ArrayMin($cArr, 100000000));
+echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
+
+$start = microtime(true);
 echo 'Calculate min of 10 billion doubles using PHP', PHP_EOL;
 var_dump(min($arr));
 echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
@@ -73,6 +80,11 @@ echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
 $start = microtime(true);
 echo 'Calculate max of 10 billion doubles using C', PHP_EOL;
 var_dump($cUdf->ArrayMax($cArr, 100000000));
+echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
+
+$start = microtime(true);
+echo 'Calculate max of 10 billion doubles using Go', PHP_EOL;
+var_dump($goUdf->ArrayMax($cArr, 100000000));
 echo 'Usage time:', (microtime(true) - $start) * 1000, 'ms', PHP_EOL;
 
 $start = microtime(true);
