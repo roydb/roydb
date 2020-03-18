@@ -1,0 +1,145 @@
+<?php
+// GENERATED CODE -- DO NOT EDIT!
+
+namespace Roykv;
+
+/**
+ */
+class TiKVClient extends \Grpc\BaseStub {
+
+    /**
+     * @param string $hostname hostname
+     * @param array $opts channel options
+     * @param \Grpc\Channel $channel (optional) re-use channel object
+     */
+    public function __construct($hostname, $opts = []) {
+        parent::__construct($hostname, $opts);
+    }
+
+    /**
+     * @param \Roykv\SetRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\SetReply[]|\Roykv\SetReply|\Grpc\StringifyAble[]
+     */
+    public function Set(\Roykv\SetRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Set',
+        $argument,
+        ['\Roykv\SetReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\GetRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\GetReply[]|\Roykv\GetReply|\Grpc\StringifyAble[]
+     */
+    public function Get(\Roykv\GetRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Get',
+        $argument,
+        ['\Roykv\GetReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\ExistRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\ExistReply[]|\Roykv\ExistReply|\Grpc\StringifyAble[]
+     */
+    public function Exist(\Roykv\ExistRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Exist',
+        $argument,
+        ['\Roykv\ExistReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\ScanRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\ScanReply[]|\Roykv\ScanReply|\Grpc\StringifyAble[]
+     */
+    public function Scan(\Roykv\ScanRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Scan',
+        $argument,
+        ['\Roykv\ScanReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\MGetRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\MGetReply[]|\Roykv\MGetReply|\Grpc\StringifyAble[]
+     */
+    public function MGet(\Roykv\MGetRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/MGet',
+        $argument,
+        ['\Roykv\MGetReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\GetAllRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\GetAllReply[]|\Roykv\GetAllReply|\Grpc\StringifyAble[]
+     */
+    public function GetAll(\Roykv\GetAllRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/GetAll',
+        $argument,
+        ['\Roykv\GetAllReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\CountRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\CountReply[]|\Roykv\CountReply|\Grpc\StringifyAble[]
+     */
+    public function Count(\Roykv\CountRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Count',
+        $argument,
+        ['\Roykv\CountReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\IncrRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\IncrReply[]|\Roykv\IncrReply|\Grpc\StringifyAble[]
+     */
+    public function Incr(\Roykv\IncrRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Incr',
+        $argument,
+        ['\Roykv\IncrReply', 'decode'],
+        $metadata, $options);
+    }
+
+    /**
+     * @param \Roykv\DelRequest $argument input argument
+     * @param array $metadata metadata
+     * @param array $options call options
+     * @return \Roykv\DelReply[]|\Roykv\DelReply|\Grpc\StringifyAble[]
+     */
+    public function Del(\Roykv\DelRequest $argument,
+      $metadata = [], $options = []) {
+        return $this->_simpleRequest('/roykv.TiKV/Del',
+        $argument,
+        ['\Roykv\DelReply', 'decode'],
+        $metadata, $options);
+    }
+
+}
