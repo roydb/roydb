@@ -4,10 +4,11 @@ namespace App\services;
 
 use App\services\roydb\QueryClient;
 use App\services\roykv\KvClient;
+use App\services\tikv\TiKVClient;
 use Roydb\SelectRequest;
 use Roykv\BeginRequest;
 use Roykv\CountRequest;
-use Roykv\SetRequest;
+use Roykvtikv\SetRequest;
 use SwFwLess\components\http\Response;
 use SwFwLess\facades\Log;
 use SwFwLess\facades\RedisPool;
@@ -51,8 +52,8 @@ class QueryService extends BaseService
 //            'upper' => '',
 //        ];
 //
-//        $kvClient = new KvClient();
-//            for ($i = 1; $i < 10000; ++$i) {
+//        $kvClient = new TiKVClient();
+//            for ($i = 1; $i < 10; ++$i) {
 //                $targetPartitionIndex = null;
 //                foreach ($partitions as $partitionIndex => $partition) {
 //                    if ((($partition['lower'] === '') || ($i >= $partition['lower'])) &&

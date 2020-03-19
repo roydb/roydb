@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package roykv;
+package roykvtikv;
 
-service Kv {
+service TiKV {
   rpc Set (SetRequest) returns (SetReply) {}
   rpc Get (GetRequest) returns (GetReply) {}
   rpc Exist (ExistRequest) returns (ExistReply) {}
@@ -10,7 +10,6 @@ service Kv {
   rpc MGet (MGetRequest) returns (MGetReply) {}
   rpc GetAll (GetAllRequest) returns (GetAllReply) {}
   rpc Count (CountRequest) returns (CountReply) {}
-  rpc Incr (IncrRequest) returns (IncrReply) {}
   rpc Del (DelRequest) returns (DelReply) {}
 }
 
@@ -81,15 +80,6 @@ message CountRequest {
 
 message CountReply {
   uint64 count = 1;
-}
-
-message IncrRequest {
-  string key = 1;
-  uint64 step = 2;
-}
-
-message IncrReply {
-  uint64 result = 1;
 }
 
 message DelRequest {
